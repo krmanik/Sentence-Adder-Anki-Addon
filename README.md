@@ -1,13 +1,13 @@
-# Sentence Adder Anki Addon
+# Sentence Adder Anki Addon - For any languages
  Add sentences to Anki editor window in one click
 
  Select a word in edit field and click add button to add sentences to that fields matching the words. Also create/add sentences for any languages. The sentences database created using [tatoeba](https://tatoeba.org/eng/downloads) language tsv files. Download language tsv file from [tatoeba](https://tatoeba.org/eng/downloads).
 
  # Install
- Download addon from AnkiWeb
+ Download addon from AnkiWeb<br>
  [Sentence Adder Anki Addon](https://ankiweb.net/shared/info/1682655437)
 
- Download from release page
+ Download from release page<br>
  [Sentence Adder Anki Addon](https://github.com/infinyte7/Sentence-Adder-Anki-Addon/releases)
 
  # Features
