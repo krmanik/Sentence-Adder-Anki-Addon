@@ -35,6 +35,7 @@
 
  2. Restart Anki and open the Addon to add new languages.
  3. Download language of choice from [tatoeba](https://tatoeba.org/eng/downloads)
+ <br> View Demo [Download Sentences data tsv files](demo/demo_download_tsv.gif)
  4. Open the installed Addon in Anki
  ```
  Anki -> Tools -> Sentence Adder...
@@ -43,6 +44,7 @@
  6. Enter language name
  7. Select downloaded language tsv file 
  8. Click create to create/add new language to the Addon
+ <br>View demo [Create/Add Language database](demo/demo_add_lang.gif)
  9. Restart Anki to apply changes
 
  ## Adding sentences to field in Anki
