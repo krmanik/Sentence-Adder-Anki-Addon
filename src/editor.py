@@ -121,7 +121,7 @@ def add_sentences(editor):
             if sentence != "":
                 if editor.note.fields[field]:
                     editor.note.fields[field] += "<br><br>"
-                editor.note.fields[field] += sentence
+                editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sentence + "</font>"
             editor.loadNote(focusTo=field)
 
     editor.web.evalWithCallback("window.getSelection().toString()", callback)
