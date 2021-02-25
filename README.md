@@ -1,7 +1,7 @@
 # Sentence Adder Anki Addon
  Add sentences to Anki editor window in one click
 
- Select a word in edit field and click add button to add sentences to that fields matching the words. Also create/add sentences for any languages. The sentences database created using [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads.org/eng/downloads) language tsv files. Download language tsv file from [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads.org/eng/downloads).
+ Select a word in edit field and click add button to add sentences to that fields matching the words. Also create/add sentences for any languages. The sentences database created using [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads) language tsv files. Download language tsv file from [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads).
 
  # Install
  Download addon from AnkiWeb
@@ -34,7 +34,7 @@
  Paste the code ```1682655437``` and install.
 
  2. Restart Anki and open the Addon to add new languages.
- 3. Download language of choice from [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads.org/eng/downloads)
+ 3. Download language of choice from [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads)
  4. Open the installed Addon in Anki
  ```
  Anki -> Tools -> Sentence Adder...
@@ -58,7 +58,7 @@
  ![demo](demo/demo_add_random_sen.gif)
 
  # Sentences Database 
- [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads.org/eng/downloads)
+ [https://tatoeba.org/eng/downloads](https://tatoeba.org/eng/downloads)
 
  # My other Anki addons and decks
  [Shared Decks and Addons](https://ankiweb.net/shared/byauthor/86203928)
