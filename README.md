@@ -12,7 +12,7 @@
 
  # Update 
   Batch add option to add sentences in one click to each note.<br>
-  If already created the sentences database then save a copy of ```lang_db``` folder from ```Anki2/1682655437/``` <br>
+  If already created the sentences database then save a copy of ```lang_db``` and ```config.json``` folder from ```Anki2/1682655437/``` <br>
  **Before updating create backups or export collection with scheduling information.** <br>
  View [video tutorials](https://www.youtube.com/playlist?list=PLuy0icdF039z-kYxCLCmD3xdUynmFNbas)
 
