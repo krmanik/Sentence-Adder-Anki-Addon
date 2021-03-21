@@ -10,6 +10,10 @@
  Download from release page<br>
  [Sentence Adder Anki Addon](https://github.com/infinyte7/Sentence-Adder-Anki-Addon/releases)
 
+ # Update 
+ Batch add option to add sentences in one click to each note.<br>
+ View [video tutorials](https://www.youtube.com/playlist?list=PLuy0icdF039z-kYxCLCmD3xdUynmFNbas)
+
  # Features
  - Create new language database
  - Add random sentence in one click
@@ -26,8 +30,6 @@
  - [Add random sentence to edit field](demo/demo_add_random_sen.gif)
  - [View list of all sentences](demo/demo_view_all_sen.gif)
  - Batch add option
-
-View [video tutorials](https://www.youtube.com/playlist?list=PLuy0icdF039z-kYxCLCmD3xdUynmFNbas)
 
  ## Install
  1. Install Addon from [AnkiWeb](https://ankiweb.net/shared/info/1682655437)
