@@ -11,7 +11,9 @@
  [Sentence Adder Anki Addon](https://github.com/infinyte7/Sentence-Adder-Anki-Addon/releases)
 
  # Update 
- Batch add option to add sentences in one click to each note.<br>
+  Batch add option to add sentences in one click to each note.<br>
+  If already created the sentences database then save a copy of ```lang_db``` folder from ```Anki2/1682655437/``` <br>
+ **Before updating create backups or export collection with scheduling information.** <br>
  View [video tutorials](https://www.youtube.com/playlist?list=PLuy0icdF039z-kYxCLCmD3xdUynmFNbas)
 
  # Features
@@ -29,7 +31,7 @@
  - [Create/Add Language database](demo/demo_add_lang.gif)
  - [Add random sentence to edit field](demo/demo_add_random_sen.gif)
  - [View list of all sentences](demo/demo_view_all_sen.gif)
- - Batch add option
+ - [Batch add option](demo/batch_add_sentences.gif)
 
  ## Install
  1. Install Addon from [AnkiWeb](https://ankiweb.net/shared/info/1682655437)
