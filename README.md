@@ -25,6 +25,9 @@
  - [Create/Add Language database](demo/demo_add_lang.gif)
  - [Add random sentence to edit field](demo/demo_add_random_sen.gif)
  - [View list of all sentences](demo/demo_view_all_sen.gif)
+ - Batch add option
+
+View [video tutorials](https://www.youtube.com/playlist?list=PLuy0icdF039z-kYxCLCmD3xdUynmFNbas)
 
  ## Install
  1. Install Addon from [AnkiWeb](https://ankiweb.net/shared/info/1682655437)

@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.0                  ##
+##                  v1.0.1                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/infinyte7)      ##
@@ -11,7 +11,7 @@
 
 
 anki_addon_name = "Sentence Adder"
-anki_addon_version = "1.0.0"
+anki_addon_version = "1.0.1"
 anki_addon_author = "Mani"
 anki_addon_license = "GPL 3.0 and later"
 
@@ -82,22 +82,26 @@ class CreateDBDialog(QDialog):
     def createDB(self):
         import csv, sqlite3
         if len(self.fileName) > 0 and len(self.langNameEdit.text()) > 0:
-            conn = sqlite3.connect(lang_db_folder + self.fileName + ".db")
-            curs = conn.cursor()
-            curs.execute(
-                "CREATE TABLE examples (id INTEGER PRIMARY KEY, sentence TEXT);")
-            if os.path.exists(self.filepath):
-                reader = csv.reader(open(self.filepath, 'r', encoding="utf-8"), delimiter='\t')
-                for row in reader:
-                    to_db = [row[2]]
-                    curs.execute("INSERT INTO examples (sentence) VALUES (?);",
-                                 to_db)
-                conn.commit()
-                self.addNewLangToConfig(self.fileName, self.langNameEdit.text())
-                self.close()
-                tooltip("Database added, restart to apply changes!")
+            db_file = lang_db_folder + self.fileName + ".db"
+            if os.path.exists(db_file):
+                tooltip("Already exists!, Rename tsv or delete db file")
             else:
-                tooltip("File not found!")
+                conn = sqlite3.connect(db_file)
+                curs = conn.cursor()
+                curs.execute(
+                    "CREATE TABLE examples (id INTEGER PRIMARY KEY, sentence TEXT);")
+                if os.path.exists(self.filepath):
+                    reader = csv.reader(open(self.filepath, 'r', encoding="utf-8"), delimiter='\t')
+                    for row in reader:
+                        to_db = [row[2]]
+                        curs.execute("INSERT INTO examples (sentence) VALUES (?);",
+                                     to_db)
+                    conn.commit()
+                    self.addNewLangToConfig(self.fileName, self.langNameEdit.text())
+                    self.close()
+                    tooltip("Database added, restart to apply changes!")
+                else:
+                    tooltip("File not found!")
         else:
             tooltip("Select a file first")
 
@@ -262,3 +266,5 @@ options_action = QAction(anki_addon_name + "...", mw)
 options_action.triggered.connect(showSenAdder)
 mw.addonManager.setConfigAction(__name__, showSenAdder)
 mw.form.menuTools.addAction(options_action)
+
+from . import batch_edit

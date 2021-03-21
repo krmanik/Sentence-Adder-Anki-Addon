@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.0                  ##
+##                  v1.0.1                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/infinyte7)      ##
@@ -19,6 +19,7 @@ from aqt.qt import *
 from aqt import mw
 from anki.hooks import addHook
 from PyQt5 import QtCore
+from aqt.utils import tooltip
 
 folder = os.path.dirname(__file__)
 libfolder = os.path.join(folder, "lib")
@@ -56,23 +57,29 @@ class CreateSenListDialog(QDialog):
         
         lang = config_data['lang']
         lang_db = config_data[lang]
-        con = sqlite3.connect(lang_db)
-        cur = con.cursor()
 
-        sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
-
-        cur.execute(sql)
-        sent = cur.fetchall()
-
-        if len(sent) > 0:
-            for s in sent:
-                self.listwidget.addItem(s[0])
-            self.topLayout.addWidget(self.listwidget)
-            self.sentFound = True
-            buttonBoxLayout.addWidget(self.buttonBox)
+        self.sentFound = False
+        
+        if not os.path.exists(lang_db):
+            tooltip("Database not exists! Create database and try again.")
         else:
-            self.topLayout.addWidget(QLabel("No Sentences found! Change Language or add database!"))
-            self.sentFound = False
+            con = sqlite3.connect(lang_db)
+            cur = con.cursor()
+
+            sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+
+            cur.execute(sql)
+            sent = cur.fetchall()
+
+            if len(sent) > 0:
+                for s in sent:
+                    self.listwidget.addItem(s[0])
+                self.topLayout.addWidget(self.listwidget)
+                self.sentFound = True
+                buttonBoxLayout.addWidget(self.buttonBox)
+            else:
+                self.topLayout.addWidget(QLabel("No Sentences found! Change Language or add database!"))
+                self.sentFound = False
 
         self.layout.addLayout(self.topLayout)
         self.layout.addLayout(buttonBoxLayout)
@@ -87,24 +94,27 @@ class CreateSenListDialog(QDialog):
 
 def getAllSentence(word):
     dlg = CreateSenListDialog(word)
-    dlg.exec_()
+    dlg.exec_()        
     sen = dlg.sentence
     return sen
 
 def getRandomSentence(word):
     if config:
-        lang = config_data['lang']
-        lang_db = config_data[lang]
-        con = sqlite3.connect(lang_db)
-        cur = con.cursor()
+        try:
+            lang = config_data['lang']
+            lang_db = config_data[lang]
+            con = sqlite3.connect(lang_db)
+            cur = con.cursor()
 
-        sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+            sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
 
-        cur.execute(sql)
-        sent = cur.fetchall()
-        r1 = random.choice(sent)
-        s1 = r1[0]
-        return s1
+            cur.execute(sql)
+            sent = cur.fetchall()
+            r1 = random.choice(sent)
+            s1 = r1[0]
+            return s1
+        except:
+            tooltip("Create database or change language options...")
 
 
 def add_sentences(editor):
@@ -112,17 +122,20 @@ def add_sentences(editor):
 
     def callback(text):
         if text:
-            sentence = ""
-            if config:
-                if config_data['auto_add'] == "true":
-                    sentence = getRandomSentence(text)
-                else:
-                    sentence = getAllSentence(text)
-            if sentence != "":
-                if editor.note.fields[field]:
-                    editor.note.fields[field] += "<br><br>"
-                editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sentence + "</font>"
-            editor.loadNote(focusTo=field)
+            try:
+                sentence = ""
+                if config:
+                    if config_data['auto_add'] == "true":
+                        sentence = getRandomSentence(text)
+                    else:
+                        sentence = getAllSentence(text)
+                if sentence != "":
+                    if editor.note.fields[field]:
+                        editor.note.fields[field] += "<br><br>"
+                    editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sentence + "</font>"
+                editor.loadNote(focusTo=field)
+            except:
+                tooltip("Create database or change language options...")
 
     editor.web.evalWithCallback("window.getSelection().toString()", callback)
 
