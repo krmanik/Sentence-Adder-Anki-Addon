@@ -37,7 +37,7 @@ if not os.path.exists(lang_db_folder):
 
 if not os.path.exists(config_json):
     config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",
-                   "auto_add": "true", "open_all_sen_window": "false"}
+                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false"}
 
     with open(config_json, "w") as f:
         json.dump(config_dict, f)
@@ -151,6 +151,9 @@ class SenAddDialog(QDialog):
         self.auto_add_rb = QRadioButton("Auto Add")
         self.all_sen_win_rb = QRadioButton("Open All Sentences Window")
 
+        self.ch_sen_contain_space_cb = QCheckBox("Sentences contain spaces")
+        self.ch_sen_contain_space_cb.setChecked(False)
+
         with open(config_json, "r") as f:
             config_data = json.load(f)
             self.templatesComboBox.addItems(config_data['all_lang'])
@@ -176,11 +179,17 @@ class SenAddDialog(QDialog):
                 self.all_sen_win_rb.setChecked(False)
                 self.auto_add_rb.setChecked(True)
 
+            if config_data['sen_contain_space'] == "true":
+                self.ch_sen_contain_space_cb.setChecked(True)
+            else:
+                self.ch_sen_contain_space_cb.setChecked(False)
+
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
         topLayout.addRow(QLabel("Language"), self.templatesComboBox)
         topLayout.addRow(QLabel("Text Color"), self.textColorButton)
-
+        topLayout.addRow(self.ch_sen_contain_space_cb)
+        
         topLayout.addRow(self.auto_add_rb)
         topLayout.addRow(self.all_sen_win_rb)
 
@@ -224,12 +233,19 @@ class SenAddDialog(QDialog):
         else:
             open_all_sen_window = "false"
 
+        if self.ch_sen_contain_space_cb.isChecked():
+            sen_space = "true"
+        else:
+            sen_space = "false"
+
         with open(config_json, "r") as f:
             config_dict = json.load(f)
             config_dict["lang"] = lang
             config_dict["text_color"] = text_color
             config_dict["auto_add"] = auto_add
             config_dict["open_all_sen_window"] = open_all_sen_window
+            config_dict['sen_contain_space'] = sen_space
+            
 
             with open(config_json, "w") as f:
                 json.dump(config_dict, f)

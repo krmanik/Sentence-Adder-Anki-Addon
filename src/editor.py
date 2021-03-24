@@ -66,7 +66,11 @@ class CreateSenListDialog(QDialog):
             con = sqlite3.connect(lang_db)
             cur = con.cursor()
 
-            sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+            if config_data['sen_contain_space'] == "false":
+                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+            else:
+                # "'%<space>" + word + "<space>%'"
+                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'"
 
             cur.execute(sql)
             sent = cur.fetchall()
@@ -106,7 +110,11 @@ def getRandomSentence(word):
             con = sqlite3.connect(lang_db)
             cur = con.cursor()
 
-            sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+            if config_data['sen_contain_space'] == "false":
+                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+            else:
+                # "'%<space>" + word + "<space>%'"
+                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'"
 
             cur.execute(sql)
             sent = cur.fetchall()
