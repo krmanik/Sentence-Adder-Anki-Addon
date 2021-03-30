@@ -140,6 +140,8 @@ def add_sentences(editor):
                 if sentence != "":
                     if editor.note.fields[field]:
                         editor.note.fields[field] += "<br><br>"
+                    word = '<font color="'+ config_data['word_color'] +'">' + text + "</font>"
+                    sentence = sentence.replace(text, word)
                     editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sentence + "</font>"
                 editor.loadNote(focusTo=field)
             except:

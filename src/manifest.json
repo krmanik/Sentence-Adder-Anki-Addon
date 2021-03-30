@@ -1,4 +1,5 @@
 {
-    "package": "sentence-adder-1-0-2",
-    "name": "Sentence Adder"
+    "package": "sentence-adder",
+    "name": "Sentence Adder",
+    "version": "1.0.0"
 }

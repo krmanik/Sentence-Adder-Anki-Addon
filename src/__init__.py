@@ -36,7 +36,7 @@ if not os.path.exists(lang_db_folder):
     os.mkdir(lang_db_folder)
 
 if not os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000", "word_color": "#000000",
                    "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false"}
 
     with open(config_json, "w") as f:
@@ -60,9 +60,13 @@ class CreateDBDialog(QDialog):
 
         self.langNameEdit = QLineEdit()
         topLayout.addRow(QLabel("Enter Language Name"), self.langNameEdit)
-
+        
         self.tsvFilePath = QLineEdit()
         topLayout.addRow(self.selectFileFolderButton, self.tsvFilePath)
+
+        self.ch_sen_downloaded_from_tatoeba_cb = QCheckBox("Sentences downloaded from tatoeba.org")
+        self.ch_sen_downloaded_from_tatoeba_cb.setChecked(True)
+        topLayout.addRow(self.ch_sen_downloaded_from_tatoeba_cb)
 
         buttonBoxLayout = QHBoxLayout()
 
@@ -93,7 +97,10 @@ class CreateDBDialog(QDialog):
                 if os.path.exists(self.filepath):
                     reader = csv.reader(open(self.filepath, 'r', encoding="utf-8"), delimiter='\t')
                     for row in reader:
-                        to_db = [row[2]]
+                        if self.ch_sen_downloaded_from_tatoeba_cb.isChecked():
+                            to_db = [row[2]]
+                        else:
+                            to_db = [row[0]]
                         curs.execute("INSERT INTO examples (sentence) VALUES (?);",
                                      to_db)
                     conn.commit()
@@ -145,8 +152,11 @@ class SenAddDialog(QDialog):
 
         self.templatesComboBox = QComboBox()
 
-        self.textColorButton = QPushButton()
-        self.textColorButton.clicked.connect(self.openColorDlg)
+        self.sentenceColor = QPushButton()
+        self.sentenceColor.clicked.connect(self.openColorDlgSen)
+
+        self.wordColor = QPushButton()
+        self.wordColor.clicked.connect(self.openColorDlgWord)
 
         self.auto_add_rb = QRadioButton("Auto Add")
         self.all_sen_win_rb = QRadioButton("Open All Sentences Window")
@@ -158,7 +168,8 @@ class SenAddDialog(QDialog):
             config_data = json.load(f)
             self.templatesComboBox.addItems(config_data['all_lang'])
             self.templatesComboBox.setCurrentText(config_data['lang'])
-            self.textColorButton.setText(config_data['text_color'])
+            self.sentenceColor.setText(config_data['text_color'])
+            self.wordColor.setText(config_data['word_color'])
 
             if config_data['auto_add'] == "true" and config_data['open_all_sen_window'] == "true" \
                     or config_data['auto_add'] == "false" and config_data['open_all_sen_window'] == "false":
@@ -187,7 +198,8 @@ class SenAddDialog(QDialog):
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
         topLayout.addRow(QLabel("Language"), self.templatesComboBox)
-        topLayout.addRow(QLabel("Text Color"), self.textColorButton)
+        topLayout.addRow(QLabel("Word Color"), self.wordColor)
+        topLayout.addRow(QLabel("Sentence Color"), self.sentenceColor)
         topLayout.addRow(self.ch_sen_contain_space_cb)
         
         topLayout.addRow(self.auto_add_rb)
@@ -219,10 +231,15 @@ class SenAddDialog(QDialog):
 
     def saveConfigData(self):
         lang = self.templatesComboBox.currentText()
-        text_color = self.textColorButton.text()
+        text_color = self.sentenceColor.text()
+        word_color = self.wordColor.text()
+
         if not utils.is_hex_color(text_color):
             text_color = "#000000"
-
+        
+        if not utils.is_hex_color(word_color):
+            word_color = "#000000"
+        
         if self.auto_add_rb.isChecked():
             auto_add = "true"
         else:
@@ -242,6 +259,7 @@ class SenAddDialog(QDialog):
             config_dict = json.load(f)
             config_dict["lang"] = lang
             config_dict["text_color"] = text_color
+            config_dict["word_color"] = word_color
             config_dict["auto_add"] = auto_add
             config_dict["open_all_sen_window"] = open_all_sen_window
             config_dict['sen_contain_space'] = sen_space
@@ -260,12 +278,19 @@ class SenAddDialog(QDialog):
         dlg.exec_()
         self.moveFront()
 
-    def openColorDlg(self):
+    def openColorDlgSen(self):
         dialog = QColorDialog()
         color = dialog.getColor()
         if color.isValid():
             color = color.name()
-            self.textColorButton.setText(color)
+            self.sentenceColor.setText(color)
+
+    def openColorDlgWord(self):
+        dialog = QColorDialog()
+        color = dialog.getColor()
+        if color.isValid():
+            color = color.name()
+            self.wordColor.setText(color)
 
     def moveFront(self):
         self.setFocus(True)
