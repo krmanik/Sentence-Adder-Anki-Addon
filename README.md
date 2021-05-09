@@ -77,8 +77,6 @@
  # My other Anki addons and decks
  [Shared Decks and Addons](https://ankiweb.net/shared/byauthor/86203928)
 
- ## Support development of this addon on [Patreon](https://www.patreon.com/kr_mani)
-
  # License
  Mani
  <br> GPL 3.0
