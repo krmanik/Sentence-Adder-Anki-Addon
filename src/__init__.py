@@ -44,13 +44,13 @@ if not os.path.exists(lang_db_folder):
 
 if not os.path.exists(config_json):
     config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",  "word_color": "#000000",
-                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30"}
+                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30", "num_of_sen": "2"}
 
     with open(config_json, "w") as f:
         json.dump(config_dict, f)
 
 if os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",  "word_color": "#000000", "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30"}
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",  "word_color": "#000000", "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30", "num_of_sen": "2"}
     config_dict_temp = {}
 
     with open(config_json, "r") as f:
@@ -184,6 +184,7 @@ class SenAddDialog(QDialog):
         self.ch_sen_contain_space_cb.setChecked(False)
 
         self.senLenTextEdit = QLineEdit()
+        self.senNumSenTextEdit = QLineEdit()
 
         with open(config_json, "r") as f:
             config_data = json.load(f)
@@ -217,6 +218,7 @@ class SenAddDialog(QDialog):
                 self.ch_sen_contain_space_cb.setChecked(False)
 
             self.senLenTextEdit.setText(config_data['sen_len'])
+            self.senNumSenTextEdit.setText(config_data['num_of_sen'])
 
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
@@ -224,6 +226,7 @@ class SenAddDialog(QDialog):
         topLayout.addRow(QLabel("Word Color"), self.wordColor)
         topLayout.addRow(QLabel("Sentence Color"), self.sentenceColor)
         topLayout.addRow(QLabel("Sentence Length"), self.senLenTextEdit)
+        topLayout.addRow(QLabel("Number of sentence"), self.senNumSenTextEdit)
         topLayout.addRow(self.ch_sen_contain_space_cb)
         
         topLayout.addRow(self.auto_add_rb)
@@ -293,6 +296,7 @@ class SenAddDialog(QDialog):
             config_dict["open_all_sen_window"] = open_all_sen_window
             config_dict['sen_contain_space'] = sen_space
             config_dict['sen_len'] = self.senLenTextEdit.text()
+            config_dict['num_of_sen'] = self.senNumSenTextEdit.text()
             
 
             with open(config_json, "w") as f:

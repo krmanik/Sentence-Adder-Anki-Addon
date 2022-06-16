@@ -14,7 +14,7 @@ from aqt.utils import tooltip
 
 from anki.hooks import addHook
 
-from .editor import getRandomSentence
+from .editor import getRandomSentence, config_data
 
 folder = os.path.dirname(__file__)
 
@@ -83,8 +83,13 @@ class SentenceBatchEdit(QDialog):
             if wordField in note:
                 word = note[wordField]
                 randomSen = getRandomSentence(word)
-                if randomSen != None or randomSen != "":
-                    note[senField] += randomSen
+                print(randomSen)
+
+                if randomSen != None:
+                    tmpWord = '<font color="'+ config_data['word_color'] +'">' + word + "</font>"
+                    for sen in randomSen:
+                        sen = sen[0].replace(word, tmpWord)
+                        note[senField] += '<font color="'+ config_data['text_color'] +'">' + sen + "</font><br>"
                 else:
                     tooltip("Sentence not found for " + word)
                     out.write(word+"\n")

@@ -124,9 +124,8 @@ def getRandomSentence(word):
 
             cur.execute(sql)
             sent = cur.fetchall()
-            r1 = random.choice(sent)
-            s1 = r1[0]
-            return s1
+            random_sen = random.sample(sent, int(config_data["num_of_sen"]))
+            return random_sen
         except Exception as e:
             tooltip("Create database or change language options...")
             print(e)
@@ -148,8 +147,10 @@ def add_sentences(editor):
                     if editor.note.fields[field]:
                         editor.note.fields[field] += "<br><br>"
                     word = '<font color="'+ config_data['word_color'] +'">' + text + "</font>"
-                    sentence = sentence.replace(text, word)
-                    editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sentence + "</font>"
+
+                    for sen in sentence:
+                        sen = sen[0].replace(text, word)
+                        editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sen + "</font><br>"
                 editor.loadNote(focusTo=field)
             except Exception as e:
                 tooltip("Create database or change language options...")
