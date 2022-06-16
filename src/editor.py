@@ -5,7 +5,7 @@
 ##                  v1.0.1                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
-##      (https://github.com/infinyte7)      ##
+##      (https://github.com/krmanik)        ##
 ##                                          ##
 ##############################################
 
@@ -52,11 +52,12 @@ class CreateSenListDialog(QDialog):
         buttonBoxLayout = QHBoxLayout()
         
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.addButton("Select", QDialogButtonBox.AcceptRole)
+        self.buttonBox.addButton("Select", QDialogButtonBox.ButtonRole.AcceptRole)
         self.buttonBox.accepted.connect(self.selectSentence)
         
         lang = config_data['lang']
         lang_db = config_data[lang]
+        sen_len = config_data['sen_len']
 
         self.sentFound = False
         
@@ -67,10 +68,10 @@ class CreateSenListDialog(QDialog):
             cur = con.cursor()
 
             if config_data['sen_contain_space'] == "false":
-                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= "+ sen_len +";"
             else:
                 # "'%<space>" + word + "<space>%'"
-                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'"
+                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= "+ sen_len +";"
 
             cur.execute(sql)
             sent = cur.fetchall()
@@ -98,7 +99,7 @@ class CreateSenListDialog(QDialog):
 
 def getAllSentence(word):
     dlg = CreateSenListDialog(word)
-    dlg.exec_()        
+    dlg.exec()        
     sen = dlg.sentence
     return sen
 
@@ -107,22 +108,25 @@ def getRandomSentence(word):
         try:
             lang = config_data['lang']
             lang_db = config_data[lang]
+            sen_len = config_data['sen_len']
+
             con = sqlite3.connect(lang_db)
             cur = con.cursor()
 
             if config_data['sen_contain_space'] == "false":
-                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'"
+                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= "+ sen_len +";"
             else:
                 # "'%<space>" + word + "<space>%'"
-                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'"
+                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= "+ sen_len +";"
 
             cur.execute(sql)
             sent = cur.fetchall()
             r1 = random.choice(sent)
             s1 = r1[0]
             return s1
-        except:
+        except Exception as e:
             tooltip("Create database or change language options...")
+            print(e)
 
 
 def add_sentences(editor):
@@ -144,8 +148,9 @@ def add_sentences(editor):
                     sentence = sentence.replace(text, word)
                     editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sentence + "</font>"
                 editor.loadNote(focusTo=field)
-            except:
+            except Exception as e:
                 tooltip("Create database or change language options...")
+                print(e)
 
     editor.web.evalWithCallback("window.getSelection().toString()", callback)
 

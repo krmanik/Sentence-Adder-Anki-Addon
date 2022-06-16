@@ -5,7 +5,7 @@
 ##                  v1.0.1                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
-##      (https://github.com/infinyte7)      ##
+##      (https://github.com/krmanik)        ##
 ##                                          ##
 ##############################################
 
@@ -36,8 +36,8 @@ class SentenceBatchEdit(QDialog):
 
         nid = self.nids[0]
         self.mw = self.browser.mw
-        model = self.mw.col.getNote(nid).model()
-        fields = self.mw.col.models.fieldNames(model)
+        note_type = self.mw.col.get_note(nid).note_type()
+        fields = self.mw.col.models.field_names(note_type)
         
         self.selectFieldsComboBox.addItems(fields)
         self.selectFieldsComboBox.setCurrentText(fields[0])
@@ -60,8 +60,8 @@ class SentenceBatchEdit(QDialog):
         buttonBoxLayout = QHBoxLayout()
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.addButton("Start", QDialogButtonBox.AcceptRole)
-        self.buttonBox.addButton("Close", QDialogButtonBox.RejectRole)
+        self.buttonBox.addButton("Start", QDialogButtonBox.ButtonRole.AcceptRole)
+        self.buttonBox.addButton("Close", QDialogButtonBox.ButtonRole.RejectRole)
 
         self.buttonBox.accepted.connect(self.startBatchAdder)
         self.buttonBox.rejected.connect(self.close)
@@ -79,11 +79,11 @@ class SentenceBatchEdit(QDialog):
         out = open(folder+"/not_found.txt", "w", encoding="utf-8")
         
         for nid in self.nids:
-            note = self.mw.col.getNote(nid)
+            note = self.mw.col.get_note(nid)
             if wordField in note:
                 word = note[wordField]
                 randomSen = getRandomSentence(word)
-                if randomSen != None:
+                if randomSen != None or randomSen != "":
                     note[senField] += randomSen
                 else:
                     tooltip("Sentence not found for " + word)
@@ -96,7 +96,7 @@ def onSentenceBatchEdit(browser):
         tooltip("No cards selected.")
         return
     dlg = SentenceBatchEdit(browser, nids)
-    dlg.exec_()
+    dlg.exec()
 
 
 def addMenu(browser):

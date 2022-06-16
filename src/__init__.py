@@ -5,7 +5,7 @@
 ##                  v1.0.1                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
-##      (https://github.com/infinyte7)      ##
+##      (https://github.com/krmanik)        ##
 ##                                          ##
 ##############################################
 
@@ -20,6 +20,7 @@ from aqt import mw, AnkiQt
 from aqt.utils import tooltip
 from PyQt5 import QtWidgets, QtCore
 
+import os
 import json
 import webbrowser
 
@@ -36,8 +37,20 @@ if not os.path.exists(lang_db_folder):
     os.mkdir(lang_db_folder)
 
 if not os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000", "word_color": "#000000",
-                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false"}
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",  "word_color": "#000000",
+                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30"}
+
+    with open(config_json, "w") as f:
+        json.dump(config_dict, f)
+
+if os.path.exists(config_json):
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",  "word_color": "#000000", "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30"}
+    config_dict_temp = {}
+
+    with open(config_json, "r") as f:
+        config_dict_temp = json.load(f)
+
+    config_dict = {**config_dict, **config_dict_temp}
 
     with open(config_json, "w") as f:
         json.dump(config_dict, f)
@@ -60,7 +73,7 @@ class CreateDBDialog(QDialog):
 
         self.langNameEdit = QLineEdit()
         topLayout.addRow(QLabel("Enter Language Name"), self.langNameEdit)
-        
+
         self.tsvFilePath = QLineEdit()
         topLayout.addRow(self.selectFileFolderButton, self.tsvFilePath)
 
@@ -71,8 +84,8 @@ class CreateDBDialog(QDialog):
         buttonBoxLayout = QHBoxLayout()
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.addButton("Create", QDialogButtonBox.AcceptRole)
-        self.buttonBox.addButton("Cancel", QDialogButtonBox.RejectRole)
+        self.buttonBox.addButton("Create", QDialogButtonBox.ButtonRole.AcceptRole)
+        self.buttonBox.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
 
         self.buttonBox.accepted.connect(self.createDB)
         self.buttonBox.rejected.connect(self.close)
@@ -164,6 +177,8 @@ class SenAddDialog(QDialog):
         self.ch_sen_contain_space_cb = QCheckBox("Sentences contain spaces")
         self.ch_sen_contain_space_cb.setChecked(False)
 
+        self.senLenTextEdit = QLineEdit()
+
         with open(config_json, "r") as f:
             config_data = json.load(f)
             self.templatesComboBox.addItems(config_data['all_lang'])
@@ -195,11 +210,14 @@ class SenAddDialog(QDialog):
             else:
                 self.ch_sen_contain_space_cb.setChecked(False)
 
+            self.senLenTextEdit.setText(config_data['sen_len'])
+
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
         topLayout.addRow(QLabel("Language"), self.templatesComboBox)
         topLayout.addRow(QLabel("Word Color"), self.wordColor)
         topLayout.addRow(QLabel("Sentence Color"), self.sentenceColor)
+        topLayout.addRow(QLabel("Sentence Length"), self.senLenTextEdit)
         topLayout.addRow(self.ch_sen_contain_space_cb)
         
         topLayout.addRow(self.auto_add_rb)
@@ -212,12 +230,17 @@ class SenAddDialog(QDialog):
         self.createButton.clicked.connect(self.createDBFromTSV)
         topLayout.addRow(QLabel("Add New Language Database"), self.createButton)
 
+        self.removeButton = QPushButton()
+        self.removeButton.setText("Remove Language")
+        self.removeButton.clicked.connect(self.deleteLandFromDB)
+        topLayout.addRow(QLabel("Remove Language From Database"), self.removeButton)
+
         buttonBoxLayout = QHBoxLayout()
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.addButton("Ok", QDialogButtonBox.AcceptRole)
-        self.buttonBox.addButton("Close", QDialogButtonBox.RejectRole)
-        self.buttonBox.addButton("Help", QDialogButtonBox.HelpRole)
+        self.buttonBox.addButton("Ok", QDialogButtonBox.ButtonRole.AcceptRole)
+        self.buttonBox.addButton("Close", QDialogButtonBox.ButtonRole.RejectRole)
+        self.buttonBox.addButton("Help", QDialogButtonBox.ButtonRole.HelpRole)
 
         self.buttonBox.accepted.connect(self.saveConfigData)
         self.buttonBox.rejected.connect(self.close)
@@ -236,7 +259,7 @@ class SenAddDialog(QDialog):
 
         if not utils.is_hex_color(text_color):
             text_color = "#000000"
-        
+
         if not utils.is_hex_color(word_color):
             word_color = "#000000"
         
@@ -263,6 +286,7 @@ class SenAddDialog(QDialog):
             config_dict["auto_add"] = auto_add
             config_dict["open_all_sen_window"] = open_all_sen_window
             config_dict['sen_contain_space'] = sen_space
+            config_dict['sen_len'] = self.senLenTextEdit.text()
             
 
             with open(config_json, "w") as f:
@@ -271,11 +295,11 @@ class SenAddDialog(QDialog):
                 tooltip("Restart to apply changes!")
 
     def openHelpInBrowser(self):
-        webbrowser.open('http://github.com')
+        webbrowser.open('https://github.com/krmanik/Sentence-Adder-Anki-Addon/issues')
 
     def createDBFromTSV(self):
         dlg = CreateDBDialog()
-        dlg.exec_()
+        dlg.exec()
         self.moveFront()
 
     def openColorDlgSen(self):
@@ -293,14 +317,68 @@ class SenAddDialog(QDialog):
             self.wordColor.setText(color)
 
     def moveFront(self):
-        self.setFocus(True)
+        self.setFocus()
         self.activateWindow()
         self.raise_()
 
+    def deleteLandFromDB(self):
+        dlg = RemoveLangDBDialog()
+        dlg.exec()
+        self.moveFront()
 
 def showSenAdder():
     dialog = SenAddDialog()
-    dialog.exec_()
+    dialog.exec()
+
+
+class RemoveLangDBDialog(QDialog):
+    def __init__(self):
+        QDialog.__init__(self, None, Qt.Window)
+        mw.setupDialogGC(self)
+        self.setWindowTitle("Remove Language From Database")
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+
+        layout = QVBoxLayout()
+
+        topLayout = QFormLayout()
+        self.templatesComboBox = QComboBox()
+
+        with open(config_json, "r") as f:
+            config_data = json.load(f)
+            self.templatesComboBox.addItems(config_data['all_lang'])
+
+        topLayout.addRow(QLabel("Remove Language"), self.templatesComboBox)
+
+        buttonBoxLayout = QHBoxLayout()
+        buttonBox = QDialogButtonBox()
+        buttonBox.addButton("Ok", QDialogButtonBox.ButtonRole.AcceptRole)
+        buttonBox.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
+        buttonBox.accepted.connect(self.confirmRemoveDlg)
+        buttonBox.rejected.connect(self.close)
+        buttonBoxLayout.addWidget(buttonBox)
+
+        topLayout.addRow(buttonBoxLayout)
+
+        layout.addLayout(topLayout)
+        self.setLayout(layout)
+    
+    def confirmRemoveDlg(self):
+        config_data = {}
+        with open(config_json, "r") as f:
+            config_data = json.load(f)
+            lang = self.templatesComboBox.currentText()
+            # remove
+            path = config_data[lang]
+            os.remove(path)
+
+            del config_data[lang]
+            config_data['all_lang'].remove(lang)
+
+        with open(config_json, "w") as f:
+            json.dump(config_data, f)
+
+        self.close()
+        tooltip("Database removed, restart to apply changes!")
 
 
 options_action = QAction(anki_addon_name + "...", mw)
