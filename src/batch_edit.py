@@ -76,7 +76,7 @@ class SentenceBatchEdit(QDialog):
         wordField = self.wordsComboBox.currentText()
         senField = self.selectFieldsComboBox.currentText()
 
-        out = open(folder+"/not_found.txt", "w", encoding="utf-8")
+        out = open(folder + "/user_files/not_found.txt", "w", encoding="utf-8")
         
         for nid in self.nids:
             note = self.mw.col.get_note(nid)

@@ -24,8 +24,11 @@ from aqt.utils import tooltip
 folder = os.path.dirname(__file__)
 libfolder = os.path.join(folder, "lib")
 sys.path.insert(0, libfolder)
-config_json = folder + "/config.json"
-lang_db_folder = folder + "/lang_db/"
+
+user_folder = folder + "/user_files/"
+
+config_json = user_folder + "config.json"
+lang_db_folder = user_folder + "lang_db/"
 
 config_data = {}
 config = False
