@@ -1,0 +1,4 @@
+.venv/
+src/user_files/
+src/__pycache__/
+src/meta.json

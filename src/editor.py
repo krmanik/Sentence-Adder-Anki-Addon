@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.1                  ##
+##                  v1.0.4                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/krmanik)        ##
@@ -39,50 +39,80 @@ if os.path.exists(config_json):
 else:
     config = False
 
+
 class CreateSenListDialog(QDialog):
     def __init__(self, word=None):
         QDialog.__init__(self, None, Qt.Window)
         mw.setupDialogGC(self)
         self.setWindowTitle("Select Sentence")
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-        self.sentence = ""
+        self.resize(600, 500)
+        self.isPair = False
+        self.sentencePair = []
 
-        self.listwidget = QListWidget()
+        self.tablewidget = QTableWidget(self)
+        self.tablewidget.verticalHeader().setVisible(False)
 
         self.layout = QVBoxLayout()
-        self.topLayout = QFormLayout()
+        self.topLayout = QVBoxLayout()
 
         buttonBoxLayout = QHBoxLayout()
-        
+
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.addButton("Select", QDialogButtonBox.ButtonRole.AcceptRole)
         self.buttonBox.accepted.connect(self.selectSentence)
-        
+
         lang = config_data['lang']
         lang_db = config_data[lang]
         sen_len = config_data['sen_len']
 
         self.sentFound = False
-        
+
+        if config_data['db_contain_pair'] == "true":
+            self.isPair = True
+
         if not os.path.exists(lang_db):
             tooltip("Database not exists! Create database and try again.")
         else:
             con = sqlite3.connect(lang_db)
             cur = con.cursor()
 
+            # select sentence and translation, spaces between words or not
             if config_data['sen_contain_space'] == "false":
-                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= "+ sen_len +";"
+                if self.isPair:
+                    sql = "Select sentence,translation from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= " + sen_len + ";"
+                else:
+                    sql = "Select sentence from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= " + sen_len + ";"
             else:
-                # "'%<space>" + word + "<space>%'"
-                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= "+ sen_len +";"
+                if self.isPair:
+                    sql = "Select sentence,translation from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= " + sen_len + ";"
+                else:
+                    # "'%<space>" + word + "<space>%'"
+                    sql = "Select sentence from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= " + sen_len + ";"
 
             cur.execute(sql)
             sent = cur.fetchall()
 
+            if self.isPair:
+                self.tablewidget.setColumnCount(2)
+                self.tablewidget.setColumnWidth(0, 300)
+                self.tablewidget.setColumnWidth(1, 300)
+                self.tablewidget.setHorizontalHeaderLabels(["Sentences", "Translation"])
+            else:
+                self.tablewidget.setColumnCount(1)
+                self.tablewidget.setColumnWidth(0, 600)
+                self.tablewidget.setHorizontalHeaderLabels(["Sentences"])
+
             if len(sent) > 0:
+                self.tablewidget.setRowCount(len(sent))
+                row = 0
                 for s in sent:
-                    self.listwidget.addItem(s[0])
-                self.topLayout.addWidget(self.listwidget)
+                    self.tablewidget.setItem(row, 0, QTableWidgetItem(s[0]))
+                    if self.isPair:
+                        self.tablewidget.setItem(row, 1, QTableWidgetItem(s[1]))
+                    row += 1
+
+                self.topLayout.addWidget(self.tablewidget)
                 self.sentFound = True
                 buttonBoxLayout.addWidget(self.buttonBox)
             else:
@@ -95,16 +125,21 @@ class CreateSenListDialog(QDialog):
 
     def selectSentence(self):
         if self.sentFound:
-            sentence = self.listwidget.currentItem().text()
-            self.sentence = str(sentence)
+            selected_row = self.tablewidget.currentRow()
+            sentence = self.tablewidget.item(selected_row, 0).text()
+            self.sentencePair = [str(sentence)]
+            if self.isPair:
+                translation = self.tablewidget.item(selected_row, 1).text()
+                self.sentencePair = [str(sentence), str(translation)]
         self.close()
 
 
 def getAllSentence(word):
     dlg = CreateSenListDialog(word)
-    dlg.exec()        
-    sen = dlg.sentence
-    return sen
+    dlg.exec()
+    sentence_pair = dlg.sentencePair
+    return sentence_pair
+
 
 def getRandomSentence(word):
     if config:
@@ -112,15 +147,26 @@ def getRandomSentence(word):
             lang = config_data['lang']
             lang_db = config_data[lang]
             sen_len = config_data['sen_len']
+            is_pair = False
 
             con = sqlite3.connect(lang_db)
             cur = con.cursor()
 
+            if config_data['db_contain_pair'] == "true":
+                is_pair = True
+
+            # select sentence and translation, spaces between words or not
             if config_data['sen_contain_space'] == "false":
-                sql = "Select sentence from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= "+ sen_len +";"
+                if is_pair:
+                    sql = "Select sentence,translation from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= " + sen_len + ";"
+                else:
+                    sql = "Select sentence from examples where sentence like " + "'%" + word + "%'" + " and length(sentence) <= " + sen_len + ";"
             else:
-                # "'%<space>" + word + "<space>%'"
-                sql = "Select sentence from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= "+ sen_len +";"
+                if is_pair:
+                    sql = "Select sentence,translation from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= " + sen_len + ";"
+                else:
+                    # "'%<space>" + word + "<space>%'"
+                    sql = "Select sentence from examples where sentence like " + "'% " + word + " %'" + " and length(sentence) <= " + sen_len + ";"
 
             cur.execute(sql)
             sent = cur.fetchall()
@@ -135,26 +181,47 @@ def add_sentences(editor):
     field = editor.currentField
 
     def callback(text):
-        if text:
-            try:
-                sentence = ""
-                if config:
-                    if config_data['auto_add'] == "true":
-                        sentence = getRandomSentence(text)
-                    else:
-                        sentence = getAllSentence(text)
-                if sentence != "":
-                    if editor.note.fields[field]:
-                        editor.note.fields[field] += "<br><br>"
-                    word = '<font color="'+ config_data['word_color'] +'">' + text + "</font>"
+        if text is None or config is None:
+            return
+        try:
+            sentence_pair_list = []
+            sentence_pair = []
+            auto_add = False
 
-                    for sen in sentence:
-                        sen = sen[0].replace(text, word)
-                        editor.note.fields[field] += '<font color="'+ config_data['text_color'] +'">' + sen + "</font><br>"
-                editor.loadNote(focusTo=field)
-            except Exception as e:
-                tooltip("Create database or change language options...")
-                print(e)
+            if config_data['auto_add'] == "true":
+                auto_add = True
+
+            if auto_add:
+                sentence_pair_list = getRandomSentence(text)
+            else:
+                sentence_pair = getAllSentence(text)
+
+            if editor.note.fields[field]:
+                editor.note.fields[field] += "<br><br>"
+
+            word = '<font color="' + config_data['word_color'] + '">' + text + "</font>"
+
+            if auto_add:
+                for sentence_pair in sentence_pair_list:
+                    insert(sentence_pair, text, word)
+                    editor.note.fields[field] += "<br>"
+            else:
+                insert(sentence_pair, text, word)
+
+            editor.loadNote(focusTo=field)
+        except Exception as e:
+            tooltip("Create database or change language options...")
+            print(e)
+
+    def insert(sentence_pair, text, word):
+        sentence = sentence_pair[0].replace(text, word)
+        editor.note.fields[field] += '<font color="' + config_data['text_color'] + '">' + sentence + "</font>"
+
+        if config_data['db_contain_pair'] == "true":
+            translation = sentence_pair[1]
+            editor.note.fields[field] += "<br>" + translation
+
+        editor.note.fields[field] += "<br>"
 
     editor.web.evalWithCallback("window.getSelection().toString()", callback)
 

@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.1                  ##
+##                  v1.0.4                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/krmanik)        ##
@@ -11,21 +11,22 @@
 
 
 anki_addon_name = "Sentence Adder"
-anki_addon_version = "1.0.1"
+anki_addon_version = "1.0.4"
 anki_addon_author = "Mani"
 anki_addon_license = "GPL 3.0 and later"
 
-from aqt.qt import *
-from aqt import mw, AnkiQt
-from aqt.utils import tooltip
-from PyQt5 import QtWidgets, QtCore
-
-import os
 import json
+import os
 import webbrowser
 
-from . import editor
+from PyQt5 import QtWidgets, QtCore
+from aqt import mw
+from aqt.qt import *
+from aqt.utils import tooltip
+
 from . import utils
+from . import editor
+from . import batch_edit
 
 folder = os.path.dirname(__file__)
 libfolder = os.path.join(folder, "lib")
@@ -43,14 +44,18 @@ if not os.path.exists(lang_db_folder):
     os.mkdir(lang_db_folder)
 
 if not os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",  "word_color": "#000000",
-                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30", "num_of_sen": "2"}
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",
+                   "word_color": "#000000",
+                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false",
+                   "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
 
     with open(config_json, "w") as f:
         json.dump(config_dict, f)
 
 if os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",  "word_color": "#000000", "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false", "sen_len": "30", "num_of_sen": "2"}
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",
+                   "word_color": "#000000", "auto_add": "true", "open_all_sen_window": "false",
+                   "sen_contain_space": "false", "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
     config_dict_temp = {}
 
     with open(config_json, "r") as f:
@@ -77,15 +82,19 @@ class CreateDBDialog(QDialog):
         self.selectFileFolderButton.setText("Select a File")
         self.selectFileFolderButton.clicked.connect(self.selectFileFolderDlg)
 
-        self.langNameEdit = QLineEdit()
-        topLayout.addRow(QLabel("Enter Language Name"), self.langNameEdit)
-
         self.tsvFilePath = QLineEdit()
         topLayout.addRow(self.selectFileFolderButton, self.tsvFilePath)
+
+        self.langNameEdit = QLineEdit()
+        topLayout.addRow(QLabel("Enter Language Name"), self.langNameEdit)
 
         self.ch_sen_downloaded_from_tatoeba_cb = QCheckBox("Sentences downloaded from tatoeba.org")
         self.ch_sen_downloaded_from_tatoeba_cb.setChecked(True)
         topLayout.addRow(self.ch_sen_downloaded_from_tatoeba_cb)
+
+        self.ch_sen_contains_pair_cb = QCheckBox("File contains sentences pair")
+        self.ch_sen_contains_pair_cb.setChecked(False)
+        topLayout.addRow(self.ch_sen_contains_pair_cb)
 
         buttonBoxLayout = QHBoxLayout()
 
@@ -103,7 +112,9 @@ class CreateDBDialog(QDialog):
         self.setLayout(layout)
 
     def createDB(self):
-        import csv, sqlite3
+        import csv
+        import sqlite3
+
         if len(self.fileName) > 0 and len(self.langNameEdit.text()) > 0:
             db_file = lang_db_folder + self.fileName + ".db"
             if os.path.exists(db_file):
@@ -111,17 +122,35 @@ class CreateDBDialog(QDialog):
             else:
                 conn = sqlite3.connect(db_file)
                 curs = conn.cursor()
-                curs.execute(
-                    "CREATE TABLE examples (id INTEGER PRIMARY KEY, sentence TEXT);")
+
+                # if tsv contains pair then create two column, one for source and other for target
+                if self.ch_sen_contains_pair_cb.isChecked():
+                    curs.execute(
+                        "CREATE TABLE examples (id INTEGER PRIMARY KEY, sentence TEXT, translation TEXT);")
+                else:
+                    curs.execute(
+                        "CREATE TABLE examples (id INTEGER PRIMARY KEY, sentence TEXT);")
+
                 if os.path.exists(self.filepath):
                     reader = csv.reader(open(self.filepath, 'r', encoding="utf-8"), delimiter='\t')
                     for row in reader:
                         if self.ch_sen_downloaded_from_tatoeba_cb.isChecked():
-                            to_db = [row[2]]
+                            if self.ch_sen_contains_pair_cb.isChecked():
+                                # if row contains error or multiple tab then it may cause errors
+                                if len(row) != 4:
+                                    continue
+                                to_db = [row[1], row[3]]
+                                curs.execute("INSERT INTO examples (sentence, translation) VALUES (?,?);", to_db)
+                            else:
+                                to_db = [row[2]]
+                                curs.execute("INSERT INTO examples (sentence) VALUES (?);", to_db)
                         else:
-                            to_db = [row[0]]
-                        curs.execute("INSERT INTO examples (sentence) VALUES (?);",
-                                     to_db)
+                            if self.ch_sen_contains_pair_cb.isChecked():
+                                to_db = [row[0], row[1]]
+                                curs.execute("INSERT INTO examples (sentence, translation) VALUES (?,?);", to_db)
+                            else:
+                                to_db = [row[0]]
+                                curs.execute("INSERT INTO examples (sentence) VALUES (?);", to_db)
                     conn.commit()
                     self.addNewLangToConfig(self.fileName, self.langNameEdit.text())
                     self.close()
@@ -132,7 +161,7 @@ class CreateDBDialog(QDialog):
             tooltip("Select a file first")
 
     def selectFileFolderDlg(self):
-        self.filepath = QtWidgets.QFileDialog.getOpenFileName(self, 'OpenFile')[0]
+        self.filepath = QtWidgets.QFileDialog.getOpenFileName(self, 'OpenFile', filter="TSV File (*.tsv)")[0]
         if self.filepath:
             self.fileName = self.filepath.split("/")[-1].split(".")[0]
             if self.filepath.split("/")[-1].split(".")[1] == "tsv":
@@ -183,6 +212,9 @@ class SenAddDialog(QDialog):
         self.ch_sen_contain_space_cb = QCheckBox("Sentences contain spaces")
         self.ch_sen_contain_space_cb.setChecked(False)
 
+        self.ch_db_contain_pair_cb = QCheckBox("Database contains sentences pair")
+        self.ch_db_contain_pair_cb.setChecked(False)
+
         self.senLenTextEdit = QLineEdit()
         self.senNumSenTextEdit = QLineEdit()
 
@@ -217,6 +249,11 @@ class SenAddDialog(QDialog):
             else:
                 self.ch_sen_contain_space_cb.setChecked(False)
 
+            if config_data['db_contain_pair'] == "true":
+                self.ch_db_contain_pair_cb.setChecked(True)
+            else:
+                self.ch_db_contain_pair_cb.setChecked(False)
+
             self.senLenTextEdit.setText(config_data['sen_len'])
             self.senNumSenTextEdit.setText(config_data['num_of_sen'])
 
@@ -228,7 +265,8 @@ class SenAddDialog(QDialog):
         topLayout.addRow(QLabel("Sentence Length"), self.senLenTextEdit)
         topLayout.addRow(QLabel("Number of sentence"), self.senNumSenTextEdit)
         topLayout.addRow(self.ch_sen_contain_space_cb)
-        
+        topLayout.addRow(self.ch_db_contain_pair_cb)
+
         topLayout.addRow(self.auto_add_rb)
         topLayout.addRow(self.all_sen_win_rb)
 
@@ -271,7 +309,7 @@ class SenAddDialog(QDialog):
 
         if not utils.is_hex_color(word_color):
             word_color = "#000000"
-        
+
         if self.auto_add_rb.isChecked():
             auto_add = "true"
         else:
@@ -287,6 +325,11 @@ class SenAddDialog(QDialog):
         else:
             sen_space = "false"
 
+        if self.ch_db_contain_pair_cb.isChecked():
+            db_pair = "true"
+        else:
+            db_pair = "false"
+
         with open(config_json, "r") as f:
             config_dict = json.load(f)
             config_dict["lang"] = lang
@@ -295,9 +338,9 @@ class SenAddDialog(QDialog):
             config_dict["auto_add"] = auto_add
             config_dict["open_all_sen_window"] = open_all_sen_window
             config_dict['sen_contain_space'] = sen_space
+            config_dict['db_contain_pair'] = db_pair
             config_dict['sen_len'] = self.senLenTextEdit.text()
             config_dict['num_of_sen'] = self.senNumSenTextEdit.text()
-            
 
             with open(config_json, "w") as f:
                 json.dump(config_dict, f)
@@ -336,6 +379,7 @@ class SenAddDialog(QDialog):
         dlg.exec()
         self.moveFront()
 
+
 def showSenAdder():
     dialog = SenAddDialog()
     dialog.exec()
@@ -371,7 +415,7 @@ class RemoveLangDBDialog(QDialog):
 
         layout.addLayout(topLayout)
         self.setLayout(layout)
-    
+
     def confirmRemoveDlg(self):
         config_data = {}
         with open(config_json, "r") as f:
@@ -395,5 +439,3 @@ options_action = QAction(anki_addon_name + "...", mw)
 options_action.triggered.connect(showSenAdder)
 mw.addonManager.setConfigAction(__name__, showSenAdder)
 mw.form.menuTools.addAction(options_action)
-
-from . import batch_edit

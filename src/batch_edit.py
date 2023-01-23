@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.1                  ##
+##                  v1.0.4                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/krmanik)        ##
@@ -89,7 +89,7 @@ class SentenceBatchEdit(QDialog):
                     tmpWord = '<font color="'+ config_data['word_color'] +'">' + word + "</font>"
                     for sen in randomSen:
                         sen = sen[0].replace(word, tmpWord)
-                        note[senField] += '<font color="'+ config_data['text_color'] +'">' + sen + "</font><br>"
+                        note[senField] += '<font color="'+ config_data['text_color'] +'">' + sen + "</font>"
                 else:
                     tooltip("Sentence not found for " + word)
                     out.write(word+"\n")
