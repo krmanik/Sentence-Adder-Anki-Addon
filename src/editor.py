@@ -181,7 +181,7 @@ def add_sentences(editor):
     field = editor.currentField
 
     def callback(text):
-        if text is None or config is None:
+        if text is None or text == "" or config is None:
             return
         try:
             sentence_pair_list = []
@@ -199,7 +199,10 @@ def add_sentences(editor):
             if editor.note.fields[field]:
                 editor.note.fields[field] += "<br><br>"
 
-            word = '<font color="' + config_data['word_color'] + '">' + text + "</font>"
+            if config_data['word_color']:
+                word = '<font color="' + config_data['word_color'] + '">' + text + "</font>"
+            else:
+                word = text
 
             if auto_add:
                 for sentence_pair in sentence_pair_list:
@@ -214,8 +217,11 @@ def add_sentences(editor):
             print(e)
 
     def insert(sentence_pair, text, word):
-        sentence = sentence_pair[0].replace(text, word)
-        editor.note.fields[field] += '<font color="' + config_data['text_color'] + '">' + sentence + "</font>"
+        if config_data['text_color']:
+            sentence = sentence_pair[0].replace(text, word)
+            editor.note.fields[field] += '<font color="' + config_data['text_color'] + '">' + sentence + "</font>"
+        else:
+            editor.note.fields[field] += sentence_pair[0]
 
         if config_data['db_contain_pair'] == "true":
             translation = sentence_pair[1]

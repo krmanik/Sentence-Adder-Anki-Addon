@@ -44,8 +44,8 @@ if not os.path.exists(lang_db_folder):
     os.mkdir(lang_db_folder)
 
 if not os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",
-                   "word_color": "#000000",
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "",
+                   "word_color": "",
                    "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false",
                    "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
 
@@ -53,8 +53,8 @@ if not os.path.exists(config_json):
         json.dump(config_dict, f)
 
 if os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "#000000",
-                   "word_color": "#000000", "auto_add": "true", "open_all_sen_window": "false",
+    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "",
+                   "word_color": "", "auto_add": "true", "open_all_sen_window": "false",
                    "sen_contain_space": "false", "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
     config_dict_temp = {}
 
@@ -304,10 +304,10 @@ class SenAddDialog(QDialog):
         text_color = self.sentenceColor.text()
         word_color = self.wordColor.text()
 
-        if not utils.is_hex_color(text_color):
+        if not utils.is_hex_color(text_color) and text_color != "":
             text_color = "#000000"
 
-        if not utils.is_hex_color(word_color):
+        if not utils.is_hex_color(word_color) and word_color != "":
             word_color = "#000000"
 
         if self.auto_add_rb.isChecked():
@@ -361,13 +361,18 @@ class SenAddDialog(QDialog):
         if color.isValid():
             color = color.name()
             self.sentenceColor.setText(color)
+        else:
+            self.sentenceColor.setText("")
 
     def openColorDlgWord(self):
         dialog = QColorDialog()
         color = dialog.getColor()
+        print(color.name())
         if color.isValid():
             color = color.name()
             self.wordColor.setText(color)
+        else:
+            self.wordColor.setText("")
 
     def moveFront(self):
         self.setFocus()

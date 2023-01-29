@@ -86,10 +86,17 @@ class SentenceBatchEdit(QDialog):
                 print(randomSen)
 
                 if randomSen != None:
-                    tmpWord = '<font color="'+ config_data['word_color'] +'">' + word + "</font>"
+                    if config_data['word_color']:
+                        tmp_word = '<font color="' + config_data['word_color'] + '">' + word + "</font>"
+                    else:
+                        tmp_word = word
+
                     for sen in randomSen:
-                        sen = sen[0].replace(word, tmpWord)
-                        note[senField] += '<font color="'+ config_data['text_color'] +'">' + sen + "</font>"
+                        if config_data['text_color']:
+                            sen = sen[0].replace(word, tmp_word)
+                            note[senField] += '<font color="' + config_data['text_color'] + '">' + sen + "</font>"
+                        else:
+                            note[senField] += sen[0]
                 else:
                     tooltip("Sentence not found for " + word)
                     out.write(word+"\n")
