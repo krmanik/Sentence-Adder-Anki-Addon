@@ -1,0 +1,1 @@
+start cmd /K "cd /d C:\Program Files\Anki && anki-console.bat"
