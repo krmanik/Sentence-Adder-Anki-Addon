@@ -204,6 +204,12 @@ def add_sentences(editor):
             else:
                 word = text
 
+            # wrap word in html
+            if config_data['word_html']:
+                word_html = config_data['word_html'].split("{{word}}")
+                if len(word_html) == 2 and word_html[0] and word_html[1]:
+                    word = word_html[0] + word + word_html[1]
+
             if auto_add:
                 for sentence_pair in sentence_pair_list:
                     insert(sentence_pair, text, word)
@@ -217,11 +223,19 @@ def add_sentences(editor):
             print(e)
 
     def insert(sentence_pair, text, word):
+        sen_html = ["", ""]
+        if config_data['sen_html']:
+            sen_html = config_data['sen_html'].split("{{sentence}}")
+
+        sentence = sentence_pair[0].replace(text, word)
+
+        if len(sen_html) == 2 and sen_html[0] and sen_html[1]:
+            sentence = sen_html[0] + sentence + sen_html[1]
+
         if config_data['text_color']:
-            sentence = sentence_pair[0].replace(text, word)
             editor.note.fields[field] += '<font color="' + config_data['text_color'] + '">' + sentence + "</font>"
         else:
-            editor.note.fields[field] += sentence_pair[0]
+            editor.note.fields[field] += sentence
 
         if config_data['db_contain_pair'] == "true":
             translation = sentence_pair[1]

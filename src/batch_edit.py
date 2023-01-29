@@ -91,12 +91,27 @@ class SentenceBatchEdit(QDialog):
                     else:
                         tmp_word = word
 
+                    # wrap word in html
+                    if config_data['word_html']:
+                        word_html = config_data['word_html'].split("{{word}}")
+                        if len(word_html) == 2 and word_html[0] and word_html[1]:
+                            tmp_word = word_html[0] + word + word_html[1]
+
+                    # wrap sentence in html
+                    sen_html = ["", ""]
+                    if config_data['sen_html']:
+                        sen_html = config_data['sen_html'].split("{{sentence}}")
+
                     for sen in randomSen:
+                        sen = sen[0].replace(word, tmp_word)
+
+                        if len(sen_html) == 2 and sen_html[0] and sen_html[1]:
+                            sen = sen_html[0] + sen + sen_html[1]
+
                         if config_data['text_color']:
-                            sen = sen[0].replace(word, tmp_word)
                             note[senField] += '<font color="' + config_data['text_color'] + '">' + sen + "</font>"
                         else:
-                            note[senField] += sen[0]
+                            note[senField] += sen
                 else:
                     tooltip("Sentence not found for " + word)
                     out.write(word+"\n")

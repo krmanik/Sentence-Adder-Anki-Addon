@@ -45,7 +45,7 @@ if not os.path.exists(lang_db_folder):
 
 if not os.path.exists(config_json):
     config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "",
-                   "word_color": "",
+                   "word_color": "", "word_html": "", "sen_html": "",
                    "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false",
                    "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
 
@@ -54,7 +54,8 @@ if not os.path.exists(config_json):
 
 if os.path.exists(config_json):
     config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "",
-                   "word_color": "", "auto_add": "true", "open_all_sen_window": "false",
+                   "word_color": "", "word_html": "", "sen_html": "",
+                   "auto_add": "true", "open_all_sen_window": "false",
                    "sen_contain_space": "false", "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
     config_dict_temp = {}
 
@@ -215,6 +216,8 @@ class SenAddDialog(QDialog):
         self.ch_db_contain_pair_cb = QCheckBox("Database contains sentences pair")
         self.ch_db_contain_pair_cb.setChecked(False)
 
+        self.wordHTMLTextEdit = QTextEdit()
+        self.senHTMLTextEdit = QTextEdit()
         self.senLenTextEdit = QLineEdit()
         self.senNumSenTextEdit = QLineEdit()
 
@@ -224,6 +227,8 @@ class SenAddDialog(QDialog):
             self.templatesComboBox.setCurrentText(config_data['lang'])
             self.sentenceColor.setText(config_data['text_color'])
             self.wordColor.setText(config_data['word_color'])
+            self.wordHTMLTextEdit.setPlainText(config_data['word_html'])
+            self.senHTMLTextEdit.setPlainText(config_data['sen_html'])
 
             if config_data['auto_add'] == "true" and config_data['open_all_sen_window'] == "true" \
                     or config_data['auto_add'] == "false" and config_data['open_all_sen_window'] == "false":
@@ -262,6 +267,8 @@ class SenAddDialog(QDialog):
         topLayout.addRow(QLabel("Language"), self.templatesComboBox)
         topLayout.addRow(QLabel("Word Color"), self.wordColor)
         topLayout.addRow(QLabel("Sentence Color"), self.sentenceColor)
+        topLayout.addRow(QLabel("Word HTML\nwrap {{word}} in html tag"), self.wordHTMLTextEdit)
+        topLayout.addRow(QLabel("Sentence HTML\nwrap {{sentence}} in html tag"), self.senHTMLTextEdit)
         topLayout.addRow(QLabel("Sentence Length"), self.senLenTextEdit)
         topLayout.addRow(QLabel("Number of sentence"), self.senNumSenTextEdit)
         topLayout.addRow(self.ch_sen_contain_space_cb)
@@ -303,6 +310,8 @@ class SenAddDialog(QDialog):
         lang = self.templatesComboBox.currentText()
         text_color = self.sentenceColor.text()
         word_color = self.wordColor.text()
+        word_html = self.wordHTMLTextEdit.toPlainText()
+        sen_html = self.senHTMLTextEdit.toPlainText()
 
         if not utils.is_hex_color(text_color) and text_color != "":
             text_color = "#000000"
@@ -335,6 +344,8 @@ class SenAddDialog(QDialog):
             config_dict["lang"] = lang
             config_dict["text_color"] = text_color
             config_dict["word_color"] = word_color
+            config_dict["word_html"] = word_html
+            config_dict["sen_html"] = sen_html
             config_dict["auto_add"] = auto_add
             config_dict["open_all_sen_window"] = open_all_sen_window
             config_dict['sen_contain_space'] = sen_space
