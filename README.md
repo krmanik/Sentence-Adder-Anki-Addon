@@ -4,22 +4,13 @@
  Select a word in edit field and click add button to add sentences to that fields matching the words. Also create/add sentences for any languages. The sentences database created using [tatoeba](https://tatoeba.org/eng/downloads) language tsv files. Download language tsv file from [tatoeba](https://tatoeba.org/eng/downloads).
 
  # Install
+ Make backup before installing addons.
+
  Download addon from AnkiWeb<br>
  [Sentence Adder Anki Addon](https://ankiweb.net/shared/info/1682655437)
 
  Download from release page<br>
  [Sentence Adder Anki Addon](https://github.com/krmanik/Sentence-Adder-Anki-Addon/releases)
-
- # Update 2021-03-24
-  Change options for sentences containing spaces. For example in English language there are spaces between words unlike Chinese language. So, update the addons with options ```Sentences contain space``` and change it to use. But before update, it is recommended to save a copy of ```lang_db``` and ```config.json``` folder from ```Anki2/1682655437/``` and paste it to  ```Anki2/1682655437/``` after update.<br>
-  View [demo](demo/demo_sen_spaces.gif)
- 
-
- # Update 2021-03-22
-  Batch add option to add sentences in one click to each note.<br>
-  If already created the sentences database then save a copy of ```lang_db``` and ```config.json``` folder from ```Anki2/1682655437/``` <br>
- **Before updating create backups or export collection with scheduling information.** <br>
- View [video tutorials](https://www.youtube.com/playlist?list=PLuy0icdF039z-kYxCLCmD3xdUynmFNbas)
 
  # Features
  - Create new language database
@@ -27,7 +18,8 @@
  - View list of all sentences matching the selected word
  - Change language (Require restart of Anki to apply changes)
  - Change color of sentences
- 
+ - Add sentence pair (sentence and its translation)
+ - Wrap word and sentence in html tag
 
  # Usage
 
