@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.4                  ##
+##                  v1.0.5                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/krmanik)        ##
