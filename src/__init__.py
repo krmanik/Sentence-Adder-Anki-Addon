@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.5                  ##
+##                  v1.0.6                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/krmanik)        ##
@@ -11,7 +11,7 @@
 
 
 anki_addon_name = "Sentence Adder"
-anki_addon_version = "1.0.5"
+anki_addon_version = "1.0.6"
 anki_addon_author = "Mani"
 anki_addon_license = "GPL 3.0 and later"
 
@@ -19,7 +19,7 @@ import json
 import os
 import webbrowser
 
-from PyQt5 import QtWidgets, QtCore
+from aqt.qt import QFileDialog, Qt
 from aqt import mw
 from aqt.qt import *
 from aqt.utils import tooltip
@@ -70,10 +70,10 @@ if os.path.exists(config_json):
 
 class CreateDBDialog(QDialog):
     def __init__(self):
-        QDialog.__init__(self, None, Qt.Window)
+        QDialog.__init__(self)
         mw.setupDialogGC(self)
         self.setWindowTitle("Create New DB")
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
 
         layout = QVBoxLayout()
 
@@ -162,7 +162,7 @@ class CreateDBDialog(QDialog):
             tooltip("Select a file first")
 
     def selectFileFolderDlg(self):
-        self.filepath = QtWidgets.QFileDialog.getOpenFileName(self, 'OpenFile', filter="TSV File (*.tsv)")[0]
+        self.filepath = QFileDialog.getOpenFileName(self, 'OpenFile', filter="TSV File (*.tsv)")[0]
         if self.filepath:
             self.fileName = self.filepath.split("/")[-1].split(".")[0]
             if self.filepath.split("/")[-1].split(".")[1] == "tsv":
@@ -190,7 +190,7 @@ class CreateDBDialog(QDialog):
 
 class SenAddDialog(QDialog):
     def __init__(self):
-        QDialog.__init__(self, None, Qt.Window)
+        QDialog.__init__(self)
         mw.setupDialogGC(self)
         self.setWindowTitle(anki_addon_name)
         self.resize(400, 300)
@@ -403,10 +403,10 @@ def showSenAdder():
 
 class RemoveLangDBDialog(QDialog):
     def __init__(self):
-        QDialog.__init__(self, None, Qt.Window)
+        QDialog.__init__(self)
         mw.setupDialogGC(self)
         self.setWindowTitle("Remove Language From Database")
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
 
         layout = QVBoxLayout()
 

@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.5                  ##
+##                  v1.0.6                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/krmanik)        ##
@@ -18,7 +18,7 @@ import random
 from aqt.qt import *
 from aqt import mw
 from anki.hooks import addHook
-from PyQt5 import QtCore
+from aqt.qt import Qt
 from aqt.utils import tooltip
 
 folder = os.path.dirname(__file__)
@@ -42,10 +42,10 @@ else:
 
 class CreateSenListDialog(QDialog):
     def __init__(self, word=None):
-        QDialog.__init__(self, None, Qt.Window)
+        QDialog.__init__(self)
         mw.setupDialogGC(self)
         self.setWindowTitle("Select Sentence")
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         self.resize(600, 500)
         self.isPair = False
         self.sentencePair = []
@@ -173,7 +173,6 @@ def getRandomSentence(word):
             random_sen = random.sample(sent, int(config_data["num_of_sen"]))
             return random_sen
         except Exception as e:
-            tooltip("Create database or change language options...")
             print(e)
 
 
