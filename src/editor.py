@@ -32,12 +32,15 @@ lang_db_folder = user_folder + "lang_db/"
 
 config_data = {}
 config = False
-if os.path.exists(config_json):
-    with open(config_json, "r") as f:
-        config_data = json.load(f)
-        config = True
-else:
-    config = False
+
+def load_config():
+    global config_data, config
+    if os.path.exists(config_json):
+        with open(config_json, "r") as f:
+            config_data = json.load(f)
+            config = True
+    else:
+        config = False
 
 
 class CreateSenListDialog(QDialog):
@@ -142,6 +145,8 @@ def getAllSentence(word):
 
 
 def getRandomSentence(word):
+    load_config()
+
     if config:
         try:
             lang = config_data['lang']
@@ -177,6 +182,8 @@ def getRandomSentence(word):
 
 
 def add_sentences(editor):
+    load_config()
+
     field = editor.currentField
 
     def callback(text):

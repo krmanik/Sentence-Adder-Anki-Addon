@@ -155,7 +155,7 @@ class CreateDBDialog(QDialog):
                     conn.commit()
                     self.addNewLangToConfig(self.fileName, self.langNameEdit.text())
                     self.close()
-                    tooltip("Database added, restart to apply changes!")
+                    tooltip("Database added, change config!")
                 else:
                     tooltip("File not found!")
         else:
@@ -356,15 +356,23 @@ class SenAddDialog(QDialog):
             with open(config_json, "w") as f:
                 json.dump(config_dict, f)
                 self.close()
-                tooltip("Restart to apply changes!")
+                tooltip("Config saved!")
 
     def openHelpInBrowser(self):
         webbrowser.open('https://github.com/krmanik/Sentence-Adder-Anki-Addon/issues')
 
     def createDBFromTSV(self):
         dlg = CreateDBDialog()
+        dlg.finished.connect(self.createDBFromTSVFinished)
         dlg.exec()
         self.moveFront()
+    
+    def createDBFromTSVFinished(self):
+        with open(config_json, "r") as f:
+            config_data = json.load(f)
+            self.templatesComboBox.clear()
+            self.templatesComboBox.addItems(config_data['all_lang'])
+            self.templatesComboBox.setCurrentText(config_data['lang'])
 
     def openColorDlgSen(self):
         dialog = QColorDialog()
@@ -392,8 +400,16 @@ class SenAddDialog(QDialog):
 
     def deleteLandFromDB(self):
         dlg = RemoveLangDBDialog()
+        dlg.finished.connect(self.deleteLandFromDBFinished)
         dlg.exec()
         self.moveFront()
+
+    def deleteLandFromDBFinished(self):
+        with open(config_json, "r") as f:
+            config_data = json.load(f)
+            self.templatesComboBox.clear()
+            self.templatesComboBox.addItems(config_data['all_lang'])
+            self.templatesComboBox.setCurrentText(config_data['lang'])
 
 
 def showSenAdder():
@@ -448,7 +464,7 @@ class RemoveLangDBDialog(QDialog):
             json.dump(config_data, f)
 
         self.close()
-        tooltip("Database removed, restart to apply changes!")
+        tooltip("Database removed!")
 
 
 options_action = QAction(anki_addon_name + "...", mw)
