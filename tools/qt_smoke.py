@@ -96,6 +96,15 @@ print("   language:", dlg.templatesComboBox.currentText(),
 print("   languages listed:", [dlg.languageList.item(i).text()
                                for i in range(dlg.languageList.count())])
 print("   style preview:", dlg.previewLabel.text())
+print("   colour button:", dlg.wordColor.button.text(),
+      "| reset enabled:", dlg.wordColor.resetButton.isEnabled())
+dlg.wordColor.resetButton.click()
+print("   after reset:", dlg.wordColor.button.text(),
+      "| value:", repr(dlg.wordColor.text_value()),
+      "| reset enabled:", dlg.wordColor.resetButton.isEnabled())
+print("   preview after reset:", dlg.previewLabel.text())
+print("   spin widths:", dlg.senLenSpin.minimumWidth(),
+      "| special text:", repr(dlg.senMinLenSpin.specialValueText()))
 
 dlg.senNumSenSpin.setValue(3)
 dlg.senMinLenSpin.setValue(5)

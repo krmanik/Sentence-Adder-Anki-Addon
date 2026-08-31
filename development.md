@@ -49,6 +49,16 @@ A single test:
 `aqt` is only listed so an IDE can resolve the imports; at runtime Anki
 provides `anki` and `aqt` itself.
 
+## Look at the options window
+
+```commandline
+QT_QPA_PLATFORM=offscreen \
+~/Library/Application\ Support/AnkiProgramFiles/.venv/bin/python tools/screenshot_options.py
+```
+
+Writes one PNG per tab into `dist/`, which is quicker than restarting Anki
+when checking spacing or a label that does not fit.
+
 ## Build the .ankiaddon file
 
 ```commandline

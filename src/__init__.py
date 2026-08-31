@@ -276,15 +276,45 @@ class CreateDBDialog(QDialog):
         self.loadPreview()
 
 
-class ColorButton(QPushButton):
-    """A button showing the chosen colour, empty when none is set."""
+def spacedForm():
+    """A form layout with room between its rows."""
+    form = QFormLayout()
+    form.setVerticalSpacing(10)
+    form.setHorizontalSpacing(12)
+    form.setContentsMargins(0, 0, 0, 0)
+    form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+    return form
+
+
+class ColorChooser(QWidget):
+    """A colour button with a reset next to it.
+
+    The button shows the colour it holds, so it is clear what is set and that
+    it can be clicked; Reset puts it back to the note type's own colour.
+    """
 
     def __init__(self, on_change=None):
-        QPushButton.__init__(self)
+        QWidget.__init__(self)
         self.color = ""
         self.on_change = on_change
-        self.clicked.connect(self.pick)
-        self.setMinimumWidth(120)
+
+        self.button = QPushButton()
+        self.button.setMinimumWidth(130)
+        self.button.clicked.connect(self.pick)
+
+        self.resetButton = QPushButton("Reset")
+        self.resetButton.setToolTip("Use the colour of the note type")
+        self.resetButton.clicked.connect(lambda: self.setColor(""))
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        layout.addWidget(self.button)
+        layout.addWidget(self.resetButton)
+        layout.addStretch()
+        self.setLayout(layout)
+
+        self.setColor("")
 
     def pick(self):
         dialog = QColorDialog(self)
@@ -297,13 +327,14 @@ class ColorButton(QPushButton):
     def setColor(self, color):
         self.color = color if utils.is_hex_color(color or "") else ""
         if self.color:
-            self.setText(self.color)
-            self.setStyleSheet(
+            self.button.setText(self.color)
+            self.button.setStyleSheet(
                 "background-color: %s; color: %s;"
                 % (self.color, "#000" if self.isLight(self.color) else "#fff"))
         else:
-            self.setText("default")
-            self.setStyleSheet("")
+            self.button.setText("default")
+            self.button.setStyleSheet("")
+        self.resetButton.setEnabled(bool(self.color))
         if self.on_change:
             self.on_change()
 
@@ -362,21 +393,25 @@ class SenAddDialog(QDialog):
 
     def buildSentencesTab(self, config_data):
         self.templatesComboBox = QComboBox()
+        self.templatesComboBox.setMinimumWidth(260)
         self.templatesComboBox.addItems(config_data['all_lang'])
         self.templatesComboBox.setCurrentText(config_data['lang'])
 
         self.senNumSenSpin = QSpinBox()
+        self.senNumSenSpin.setMinimumWidth(110)
         self.senNumSenSpin.setRange(1, 50)
         self.senNumSenSpin.setValue(max(1, config_mod.as_int(config_data['num_of_sen'], 2)))
 
         self.senMinLenSpin = QSpinBox()
+        self.senMinLenSpin.setMinimumWidth(110)
         self.senMinLenSpin.setRange(0, 9999)
-        self.senMinLenSpin.setSpecialValueText("no limit")
+        self.senMinLenSpin.setSpecialValueText("  no limit")
         self.senMinLenSpin.setValue(config_mod.as_int(config_data['sen_min_len'], 0))
 
         self.senLenSpin = QSpinBox()
+        self.senLenSpin.setMinimumWidth(110)
         self.senLenSpin.setRange(0, 9999)
-        self.senLenSpin.setSpecialValueText("no limit")
+        self.senLenSpin.setSpecialValueText("  no limit")
         self.senLenSpin.setValue(config_mod.as_int(config_data['sen_len'], 30))
 
         self.ch_sen_contain_space_cb = QCheckBox(
@@ -392,7 +427,7 @@ class SenAddDialog(QDialog):
         self.auto_add_rb.setChecked(auto_add)
         self.all_sen_win_rb.setChecked(not auto_add)
 
-        form = QFormLayout()
+        form = spacedForm()
         form.addRow(QLabel("Language"), self.templatesComboBox)
         form.addRow(QLabel("Sentences per word"), self.senNumSenSpin)
         form.addRow(QLabel("Shortest sentence"), self.senMinLenSpin)
@@ -401,6 +436,8 @@ class SenAddDialog(QDialog):
 
         clicking = QGroupBox("When the editor button is clicked")
         clickingLayout = QVBoxLayout()
+        clickingLayout.setContentsMargins(12, 12, 12, 12)
+        clickingLayout.setSpacing(8)
         clickingLayout.addWidget(self.auto_add_rb)
         clickingLayout.addWidget(self.all_sen_win_rb)
         clicking.setLayout(clickingLayout)
@@ -416,7 +453,10 @@ class SenAddDialog(QDialog):
         self.setUpTargetField(str(config_data['target_field']))
         self.setUpTransField(str(config_data['target_trans_field']))
 
-        form = QFormLayout()
+        for widget in (self.targetFieldWidget(), self.transFieldWidget()):
+            widget.setMinimumWidth(260)
+
+        form = spacedForm()
         form.addRow(QLabel("Add sentences to"), self.targetFieldWidget())
         form.addRow(QLabel("Add translation to"), self.transFieldWidget())
 
@@ -431,16 +471,18 @@ class SenAddDialog(QDialog):
         return self.asTab(form, hint)
 
     def buildStyleTab(self, config_data):
-        self.wordColor = ColorButton(self.updatePreview)
+        self.wordColor = ColorChooser(self.updatePreview)
         self.wordColor.setColor(config_data['word_color'])
-        self.sentenceColor = ColorButton(self.updatePreview)
+        self.sentenceColor = ColorChooser(self.updatePreview)
         self.sentenceColor.setColor(config_data['text_color'])
 
         self.wordHTMLEdit = QLineEdit(config_data['word_html'])
+        self.wordHTMLEdit.setMinimumWidth(260)
         self.wordHTMLEdit.setPlaceholderText("<b>{{word}}</b>")
         self.wordHTMLEdit.textChanged.connect(self.updatePreview)
 
         self.senHTMLEdit = QLineEdit(config_data['sen_html'])
+        self.senHTMLEdit.setMinimumWidth(260)
         self.senHTMLEdit.setPlaceholderText("<i>{{sentence}}</i>")
         self.senHTMLEdit.textChanged.connect(self.updatePreview)
 
@@ -450,10 +492,11 @@ class SenAddDialog(QDialog):
 
         preview = QGroupBox("Preview")
         previewLayout = QVBoxLayout()
+        previewLayout.setContentsMargins(12, 12, 12, 12)
         previewLayout.addWidget(self.previewLabel)
         preview.setLayout(previewLayout)
 
-        form = QFormLayout()
+        form = spacedForm()
         form.addRow(QLabel("Word colour"), self.wordColor)
         form.addRow(QLabel("Sentence colour"), self.sentenceColor)
         form.addRow(QLabel("Wrap the word in"), self.wordHTMLEdit)
@@ -487,6 +530,8 @@ class SenAddDialog(QDialog):
     @staticmethod
     def asTab(*widgets):
         layout = QVBoxLayout()
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(14)
         for widget in widgets:
             if isinstance(widget, QLayout):
                 layout.addLayout(widget)
