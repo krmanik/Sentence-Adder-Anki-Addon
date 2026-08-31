@@ -1,2 +1,4 @@
-aqt~=23.12.1
-anki~=23.12.1
+# only needed to develop and test the add-on; Anki ships its own copies
+aqt~=25.9
+anki~=25.9
+pytest~=8.0

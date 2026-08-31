@@ -2,7 +2,7 @@
 ##############################################
 ##                                          ##
 ##              Sentence Adder              ##
-##                  v1.0.6                  ##
+##                  v1.1.0                  ##
 ##                                          ##
 ##          Copyright (c) Mani 2021         ##
 ##      (https://github.com/krmanik)        ##
@@ -11,7 +11,7 @@
 
 
 anki_addon_name = "Sentence Adder"
-anki_addon_version = "1.0.6"
+anki_addon_version = "1.1.0"
 anki_addon_author = "Mani"
 anki_addon_license = "GPL 3.0 and later"
 

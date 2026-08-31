@@ -1,4 +1,31 @@
- # Update 2023-01-29 
+ # Update 2026-08-31 (v1.1.0)
+ Existing sentence databases and `config.json` keep working, no re-import needed.
+
+ **Fixes**
+ - Batch adder works again. It failed with `Error: 'word_color'` (the config was
+   read before it was loaded), with an empty error (writing to a translation
+   field that was left empty), and with a stuck progress window that needed a
+   force quit.
+ - Selecting notes of more than one note type no longer stops the batch run.
+ - Words are searched without their field html, so `<b>word</b>` matches again.
+ - A word containing `'`, `%` or `_` no longer breaks or widens the search.
+ - "Sentences contain spaces" now matches whole words anywhere in the sentence,
+   including at the start, at the end and before punctuation.
+ - Asking for more sentences than a word has no longer returns nothing.
+ - "Database not exists!" after moving, reinstalling or copying the add-on:
+   databases are found in the current `lang_db` folder again.
+ - Whether a database holds sentence pairs is read from the database itself.
+ - Changing options or adding a language applies without restarting Anki.
+ - A wrongly formatted tsv no longer leaves an empty language behind, and a
+   large tatoeba file shows import progress.
+
+ **New**
+ - Choose the field sentences are added to (options -> Add sentences to field).
+ - Minimum sentence length next to the maximum.
+ - The batch adder remembers the fields you picked and reports how many words
+   had no sentence.
+
+ # Update 2023-01-29
  - Add sentence pair (sentence and its translation)
  - Wrap word and sentence in html tag
 

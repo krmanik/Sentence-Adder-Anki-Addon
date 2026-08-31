@@ -3,6 +3,8 @@
 
  Select a word in edit field and click add button to add sentences to that fields matching the words. Also create/add sentences for any languages. The sentences database created using [tatoeba](https://tatoeba.org/eng/downloads) language tsv files. Download language tsv file from [tatoeba](https://tatoeba.org/eng/downloads).
 
+ Requires Anki 2.1.50 or newer (Qt6 or Qt5 build).
+
  # Install
  Make backup before installing addons.
 
@@ -13,13 +15,15 @@
  [Sentence Adder Anki Addon](https://github.com/krmanik/Sentence-Adder-Anki-Addon/releases)
 
  # Features
- - Create new language database
+ - Create new language database from tatoeba files or your own tsv
  - Add random sentence in one click
  - View list of all sentences matching the selected word
- - Change language (Require restart of Anki to apply changes)
- - Change color of sentences
+ - Batch add sentences to many notes at once
+ - Choose which field the sentences are added to
+ - Change color of sentences, wrap word and sentence in html tag
  - Add sentence pair (sentence and its translation)
- - Wrap word and sentence in html tag
+ - Limit sentences by minimum and maximum length
+ - Options apply immediately, no restart needed
 
  # Usage
 
@@ -46,25 +50,77 @@
  ```
  5. Click Add new language
  6. Enter language name
- 7. Select downloaded language tsv file 
+ 7. Select downloaded language tsv file
  8. Click create to create/add new language to the Addon
  <br>View demo [Create/Add Language database](demo/demo_add_lang.gif)
- 9. Restart Anki to apply changes
 
- ## Adding sentences to field in Anki
- 1. First change preferences for the Anddon
+ ## Adding sentences to a field in Anki
+ 1. First change preferences for the Addon
  <br>There are two preferences
 <br> a. Auto add sentences: Automatically add random sentences matching the words
 <br> b. Open all sentences window: View list of all sentences and select as per choice from the list
- 
- 2. Select any text in editor window 
+
+ 2. Select any text in editor window
  3. Click add button to add sentences
- 
+
+ By default the sentences go into the field the cursor is in. To always use the
+ same field, put its name in ```Add sentences to field``` in the options.
+
+ ## Batch adding sentences
+ ```
+ Anki -> Browse -> select notes -> Edit -> Sentence Batch Adder...
+ ```
+ Pick the field holding the words and the field the sentences should go to. When
+ the language database holds sentence pairs, a field for the translation can be
+ picked as well; leave it empty to keep the translation under each sentence in
+ the same field. ```Overwrite existing fields``` replaces what those fields hold
+ instead of appending. Words that had no matching sentence are counted in the
+ message at the end and listed in ```user_files/not_found_<date>.txt``` inside
+ the add-on folder.
+
+ The whole run is one undo step: ```Edit -> Undo``` puts every note back.
+
+ ## Options
+ | Option | Meaning |
+ | --- | --- |
+ | Language | Which sentence database is used |
+ | Word Color / Sentence Color | Colors used for the word and the sentence |
+ | Word HTML / Sentence HTML | Wrap ```{{word}}``` / ```{{sentence}}``` in your own html |
+ | Maximum Sentence Length | Longest sentence to use, 0 for no limit |
+ | Minimum Sentence Length | Shortest sentence to use, 0 for no limit |
+ | Number of sentence | How many sentences are added per word |
+ | Add sentences to field | Field name, empty means the field the cursor is in |
+ | Sentences contain spaces | Match whole words, for languages written with spaces |
+
+ ## Using your own tsv file
+ Untick ```Sentences downloaded from tatoeba.org``` in the create dialog, then a
+ tab separated file with one sentence per line is enough:
+
+ ```
+ I like cats.
+ She reads a book.
+ ```
+
+ For sentence pairs also tick ```File contains sentences pair``` and put the
+ translation in the second column:
+
+ ```
+ 私は猫が好きです。	I like cats.
+ 本を読む。	Read a book.
+ ```
+
+ Files downloaded from tatoeba keep their own column order
+ (```id	language	text``` for sentences, ```id	sentence	id	translation``` for
+ pairs), so leave the tatoeba option ticked for those.
+
  ## Demo
  ![demo](demo/demo_add_random_sen.gif)
 
- # Sentences Database 
+ # Sentences Database
  [tatoeba](https://tatoeba.org/eng/downloads)
+
+ # Development
+ See [development.md](development.md).
 
  # My other Anki addons and decks
  [Shared Decks and Addons](https://ankiweb.net/shared/byauthor/86203928)
