@@ -186,5 +186,30 @@ def test_unknown_target_field_falls_back_to_the_cursor(addon):
     assert editor_mod.target_field_index(ed, addon.load()) == 2
 
 
+def test_lookup_options_read_the_length_settings(addon):
+    addon.update(sen_len="60", sen_min_len="10", sen_contain_space="true")
+
+    assert editor_mod.lookup_options(addon.load()) == {
+        "min_len": 10, "max_len": 60, "whole_word": True}
+
+
+def test_lookup_options_survive_empty_length_settings(addon):
+    addon.update(sen_len="", sen_min_len="")
+
+    assert editor_mod.lookup_options(addon.load()) == {
+        "min_len": 0, "max_len": 0, "whole_word": False}
+
+
+def test_minimum_length_keeps_short_sentences_out(addon):
+    make_db(addon, ["A cat.", "The cat is sleeping on the sofa."])
+    addon.update(num_of_sen="1", sen_min_len="20", sen_len="100")
+    note = FakeNote(["cat", "", ""])
+    ed = FakeEditor(note, current_field=1)
+
+    editor_mod.add_sentences(ed)
+
+    assert note.fields[1] == "The cat is sleeping on the sofa.<br>"
+
+
 def test_get_random_sentence_returns_none_without_a_database(addon):
     assert editor_mod.getRandomSentence("cat") is None

@@ -166,16 +166,15 @@ class SenAddDialog(QDialog):
         self.auto_add_rb = QRadioButton("Auto Add")
         self.all_sen_win_rb = QRadioButton("Open All Sentences Window")
 
-        self.ch_sen_contain_space_cb = QCheckBox("Sentences contain spaces")
+        self.ch_sen_contain_space_cb = QCheckBox("Sentences contain spaces (match whole words)")
         self.ch_sen_contain_space_cb.setChecked(False)
-
-        self.ch_db_contain_pair_cb = QCheckBox("Database contains sentences pair")
-        self.ch_db_contain_pair_cb.setChecked(False)
 
         self.wordHTMLTextEdit = QTextEdit()
         self.senHTMLTextEdit = QTextEdit()
         self.senLenTextEdit = QLineEdit()
+        self.senMinLenTextEdit = QLineEdit()
         self.senNumSenTextEdit = QLineEdit()
+        self.targetFieldEdit = QLineEdit()
 
         config_data = config_store.load()
         self.templatesComboBox.addItems(config_data['all_lang'])
@@ -193,10 +192,12 @@ class SenAddDialog(QDialog):
         self.all_sen_win_rb.setChecked(not auto_add)
 
         self.ch_sen_contain_space_cb.setChecked(config_mod.as_bool(config_data['sen_contain_space']))
-        self.ch_db_contain_pair_cb.setChecked(config_mod.as_bool(config_data['db_contain_pair']))
 
         self.senLenTextEdit.setText(str(config_data['sen_len']))
+        self.senMinLenTextEdit.setText(str(config_data['sen_min_len']))
         self.senNumSenTextEdit.setText(str(config_data['num_of_sen']))
+        self.targetFieldEdit.setText(str(config_data['target_field']))
+        self.targetFieldEdit.setPlaceholderText("empty = the field the cursor is in")
 
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
@@ -205,10 +206,11 @@ class SenAddDialog(QDialog):
         topLayout.addRow(QLabel("Sentence Color"), self.sentenceColor)
         topLayout.addRow(QLabel("Word HTML\nwrap {{word}} in html tag"), self.wordHTMLTextEdit)
         topLayout.addRow(QLabel("Sentence HTML\nwrap {{sentence}} in html tag"), self.senHTMLTextEdit)
-        topLayout.addRow(QLabel("Sentence Length"), self.senLenTextEdit)
+        topLayout.addRow(QLabel("Maximum Sentence Length\n0 = no limit"), self.senLenTextEdit)
+        topLayout.addRow(QLabel("Minimum Sentence Length\n0 = no limit"), self.senMinLenTextEdit)
         topLayout.addRow(QLabel("Number of sentence"), self.senNumSenTextEdit)
+        topLayout.addRow(QLabel("Add sentences to field"), self.targetFieldEdit)
         topLayout.addRow(self.ch_sen_contain_space_cb)
-        topLayout.addRow(self.ch_db_contain_pair_cb)
 
         topLayout.addRow(self.auto_add_rb)
         topLayout.addRow(self.all_sen_win_rb)
@@ -261,9 +263,10 @@ class SenAddDialog(QDialog):
             auto_add="true" if self.auto_add_rb.isChecked() else "false",
             open_all_sen_window="true" if self.all_sen_win_rb.isChecked() else "false",
             sen_contain_space="true" if self.ch_sen_contain_space_cb.isChecked() else "false",
-            db_contain_pair="true" if self.ch_db_contain_pair_cb.isChecked() else "false",
-            sen_len=self.senLenTextEdit.text(),
-            num_of_sen=self.senNumSenTextEdit.text(),
+            sen_len=self.senLenTextEdit.text().strip(),
+            sen_min_len=self.senMinLenTextEdit.text().strip(),
+            num_of_sen=self.senNumSenTextEdit.text().strip(),
+            target_field=self.targetFieldEdit.text().strip(),
         )
         self.close()
         tooltip("Config saved!")
@@ -309,7 +312,6 @@ class SenAddDialog(QDialog):
         self.templatesComboBox.clear()
         self.templatesComboBox.addItems(config_data['all_lang'])
         self.templatesComboBox.setCurrentText(config_data['lang'])
-        self.ch_db_contain_pair_cb.setChecked(config_mod.as_bool(config_data['db_contain_pair']))
 
 
 def showSenAdder():
