@@ -61,6 +61,37 @@ def detect_layout(rows):
     return {"sentence": sentence, "translation": translation, "id": id_column}
 
 
+ROLE_LABELS = [("sentence", "Sentence"), ("translation", "Translation"),
+               ("id", "Tatoeba id")]
+
+
+def describe_layout(layout, row=None):
+    """What will be imported, as ``[(role, column label, example value)]``.
+
+    Shown for confirmation before a database is written, so nothing is
+    imported from a column the user did not mean.
+    """
+    described = []
+    for key, label in ROLE_LABELS:
+        column = layout.get(key)
+        if column is None:
+            described.append((label, "not used", ""))
+            continue
+        example = ""
+        if row is not None and column < len(row):
+            example = row[column].strip()
+        described.append((label, "Column %d" % (column + 1), example))
+    return described
+
+
+def first_usable_row(rows, layout):
+    """The first row the layout can actually read, or None."""
+    for row in rows:
+        if read_columns(row, layout) is not None:
+            return row
+    return None
+
+
 def preview_file(path, limit=20):
     """First rows of ``path`` plus the detected layout, for the user to check."""
     rows = sample_rows(path, max(limit, SAMPLE_ROWS))

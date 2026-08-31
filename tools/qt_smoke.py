@@ -122,6 +122,20 @@ print("preselected -> sentence:", create.sentenceComboBox.currentText(),
       "| id:", create.idComboBox.currentText())
 print("example:", create.exampleLabel.text())
 create.langNameEdit.setText("Chinese")
+
+# cancelling the confirmation must not write anything
+create.confirmImport = lambda layout: False
+create.createDB()
+print("after cancel, db written:", os.path.exists(os.path.join(lang_db, "cmn_pairs.db")),
+      "| languages:", config_mod.Config(user_files).load()["all_lang"])
+
+# what the confirmation would show
+from importlib import import_module
+ti = sys.modules[PKG + ".tsv_import"]
+row = ti.first_usable_row(create.previewRows, create.chosenLayout())
+print("confirm shows:", ti.describe_layout(create.chosenLayout(), row))
+
+create.confirmImport = lambda layout: True
 create.createDB()
 imported = config_mod.Config(user_files).load()
 print("language added:", imported["all_lang"], "| current:", imported["lang"])

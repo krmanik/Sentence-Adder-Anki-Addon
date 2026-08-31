@@ -171,21 +171,40 @@ class CreateDBDialog(QDialog):
             self.exampleLabel.setText("Select a file to see what it holds.")
             return
 
-        for row in self.previewRows:
-            values = tsv_import.read_columns(row, layout)
-            if values:
-                break
-        else:
+        row = tsv_import.first_usable_row(self.previewRows, layout)
+        if row is None:
             self.exampleLabel.setText(
                 "<b>Nothing would be imported.</b> Pick another sentence column.")
             return
 
-        parts = ["sentence: %s" % values[0]]
-        columns = tsv_import.table_columns(layout)
-        for name, value in zip(columns[1:], values[1:]):
-            parts.append("%s: %s" % (
-                "translation" if name == "translation" else "tatoeba id", value))
+        parts = []
+        for label, column, example in tsv_import.describe_layout(layout, row):
+            if example:
+                parts.append("%s: %s" % (label.lower(), example))
         self.exampleLabel.setText("Will be stored as &mdash; " + "<br>".join(parts))
+
+    def confirmImport(self, layout):
+        """Ask before writing anything, showing which column is used for what."""
+        row = tsv_import.first_usable_row(self.previewRows, layout)
+
+        lines = ["<table cellpadding=4>"]
+        for label, column, example in tsv_import.describe_layout(layout, row):
+            lines.append("<tr><td><b>%s</b></td><td>%s</td><td>%s</td></tr>"
+                         % (label, column, example))
+        lines.append("</table>")
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Create database")
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setTextFormat(Qt.TextFormat.RichText)
+        box.setText("Create <b>%s</b> from %s?"
+                    % (self.langNameEdit.text().strip(), os.path.basename(self.filepath)))
+        box.setInformativeText(
+            "".join(lines) + "<br>Cancel to pick different columns.")
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(QMessageBox.StandardButton.Ok)
+        return box.exec() == QMessageBox.StandardButton.Ok
 
     # import ################################################################
 
@@ -211,6 +230,9 @@ class CreateDBDialog(QDialog):
         db_file = os.path.join(config_store.lang_db_folder, self.fileName + ".db")
         if os.path.exists(db_file):
             tooltip("Already exists!, Rename tsv or delete db file")
+            return
+
+        if not self.confirmImport(layout):
             return
 
         mw.progress.start(label="Creating sentence database...", immediate=True)

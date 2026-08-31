@@ -219,3 +219,30 @@ def test_rows_too_short_for_the_chosen_columns_are_skipped(tmp_path):
     db_file = str(tmp_path / "ragged.db")
 
     assert tsv_import.import_tsv(tsv, db_file) == 1
+
+
+def test_describe_layout_lists_every_role_with_an_example():
+    layout = {"sentence": 1, "translation": 3, "id": 0}
+    row = ["1", "我們試試看！", "1176908", "Let's try!"]
+
+    assert tsv_import.describe_layout(layout, row) == [
+        ("Sentence", "Column 2", "我們試試看！"),
+        ("Translation", "Column 4", "Let's try!"),
+        ("Tatoeba id", "Column 1", "1"),
+    ]
+
+
+def test_describe_layout_marks_columns_that_are_not_used():
+    described = tsv_import.describe_layout(
+        {"sentence": 0, "translation": None, "id": None}, ["I like cats."])
+
+    assert described[1] == ("Translation", "not used", "")
+    assert described[2] == ("Tatoeba id", "not used", "")
+
+
+def test_first_usable_row_skips_lines_the_layout_cannot_read():
+    layout = {"sentence": 1, "translation": None, "id": None}
+    rows = [["only one column"], ["1", "I like cats."]]
+
+    assert tsv_import.first_usable_row(rows, layout) == ["1", "I like cats."]
+    assert tsv_import.first_usable_row([["short"]], layout) is None
