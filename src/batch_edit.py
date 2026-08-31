@@ -9,6 +9,10 @@
 ##                                          ##
 ##############################################
 
+import os
+
+from datetime import datetime
+
 from aqt.qt import *
 from aqt.utils import tooltip
 
@@ -16,134 +20,146 @@ from aqt import mw
 
 from anki.hooks import addHook
 
-from .editor import getRandomSentence, get_config
-
-from datetime import datetime
-
-from typing import TYPE_CHECKING, Callable, Optional, Sequence
-
 from anki.collection import OpChangesWithCount
 from aqt.operations import CollectionOp
-from aqt.qt import QWidget
 
-if TYPE_CHECKING:
-    from anki.collection import Collection
-    from anki.notes import NoteId
+from . import config as config_mod
+from . import editor
+from . import sentences
 
 folder = os.path.dirname(__file__)
 
+PROGRESS_EVERY = 20
 
-# https://github.com/glutanimate/batch-editing
-def batch_edit_notes(
-    parent,
-    nids,
-    wordField,
-    senField,
-    transField,
-    overwrite,
-    on_complete,
-):
-    # read the config here instead of at import time, otherwise the batch
-    # adder runs with an empty config and fails with KeyError: 'word_color'
-    config_data = get_config()
 
-    def _clear_if_overwrite_selected(note):
-        if overwrite and senField != wordField and transField != wordField:
-            note[senField] = ""
-            if transField != "":
-                note[transField] = ""
+def open_language_db(config_data):
+    """The selected language database, or None when there is none."""
+    db_path = editor.config_store.db_path(config_data)
+    if not db_path:
+        return None
+    return sentences.SentenceDB(db_path, **editor.lookup_options(config_data))
 
-    def _add_html(sen):
-        sen_html = config_data.get("sen_html", "").split("{{sentence}}")
-        if len(sen_html) == 2 and sen_html[0] and sen_html[1]:
-            sen = sen_html[0] + sen + sen_html[1]
 
-        return sen
+def update_note(note, options, config_data, db):
+    """Add sentences to one note.  Returns True when the note changed.
 
-    def on_success(changes: OpChangesWithCount):
-        on_complete(changes.count)
+    Every field is looked up on the note first: a selection can hold several
+    note types, and a field that exists in only one of them used to raise
+    KeyError and stop the whole run.  The same went for the translation
+    field, which was written to even when it was left empty in the dialog.
+    """
+    word_field = options["word_field"]
+    sen_field = options["sen_field"]
+    trans_field = options.get("trans_field") or ""
 
-    def operation(collection: "Collection") -> OpChangesWithCount:
-        count = 0
-        progressCount = 0
-        tstamp = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
-        out = open(
-            folder + "/user_files/not_found_" + tstamp + ".txt", "w", encoding="utf-8"
-        )
+    if word_field not in note or sen_field not in note:
+        return False
+    if trans_field and trans_field not in note:
+        trans_field = ""
 
-        modified_notes = []
+    word = sentences.strip_html(note[word_field])
+    if not word:
+        return False
+
+    rows = db.find(word)
+    if not rows:
+        return False
+
+    picked = sentences.pick_random(
+        rows, config_mod.as_int(config_data.get("num_of_sen"), 1))
+
+    if options.get("overwrite"):
+        if sen_field != word_field:
+            note[sen_field] = ""
+        if trans_field and trans_field != word_field:
+            note[trans_field] = ""
+
+    if trans_field:
+        sen_html, trans_html = sentences.render(picked, word, config_data)
+        note[trans_field] = sentences.append_to_field(note[trans_field], trans_html)
+    else:
+        sen_html = sentences.render_inline(picked, word, config_data)
+
+    note[sen_field] = sentences.append_to_field(note[sen_field], sen_html)
+    return True
+
+
+def write_not_found(words):
+    """Log the words nothing matched, returning the file path."""
+    if not words:
+        return None
+    editor.config_store.ensure_dirs()
+    path = os.path.join(
+        editor.config_store.user_folder,
+        "not_found_%s.txt" % datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p"))
+    with open(path, "w", encoding="utf-8") as out:
+        out.write("\n".join(words) + "\n")
+    return path
+
+
+def batch_edit_notes(parent, nids, options, on_complete):
+    # the config is read here, not at import time: the batch adder used to run
+    # with an empty config and fail with KeyError: 'word_color'
+    config_data = editor.get_config()
+
+    def operation(collection):
+        db = open_language_db(config_data)
+        if db is None:
+            raise ValueError(
+                "No sentence database selected. Open Tools > Sentence Adder "
+                "and choose a language first.")
+
+        updated = []
+        not_found = []
         total = len(nids)
 
-        for nid in nids:
-            remaining = total - progressCount
-            mw.taskman.run_on_main(
-                lambda: mw.progress.update(
-                    label=f"Remaining: {remaining} notes",
-                    value=progressCount,
-                    max=total,
-                )
-            )
-
-            note = parent.mw.col.get_note(nid)
-            if wordField in note:
-                word = note[wordField]
-                randomSen = getRandomSentence(word)
-
-                if randomSen != None:
-                    _clear_if_overwrite_selected(note)
-
-                    if config_data["word_color"]:
-                        tmp_word = (
-                            '<font color="'
-                            + config_data["word_color"]
-                            + '">'
-                            + word
-                            + "</font>"
+        try:
+            for index, nid in enumerate(nids):
+                if index % PROGRESS_EVERY == 0:
+                    mw.taskman.run_on_main(
+                        lambda done=index, left=total - index: mw.progress.update(
+                            label="Remaining: %d notes" % left,
+                            value=done,
+                            max=total,
                         )
-                    else:
-                        tmp_word = word
+                    )
 
-                    # wrap word in html
-                    if config_data["word_html"]:
-                        word_html = config_data["word_html"].split("{{word}}")
-                        if len(word_html) == 2 and word_html[0] and word_html[1]:
-                            tmp_word = word_html[0] + word + word_html[1]
-
-                    for sen_trans_pair in randomSen:
-                        sen = sen_trans_pair[0].replace(word, tmp_word)
-                        sen = _add_html(sen)
-
-                        if config_data["text_color"]:
-                            note[senField] += (
-                                '<font color="'
-                                + config_data["text_color"]
-                                + '">'
-                                + sen
-                                + "</font>"
-                            )
-                        else:
-                            note[senField] += sen
-
-                        if transField != "":
-                            note[transField] += _add_html(sen_trans_pair[1])
-
-                        note[senField] += "<br>"
-                        note[transField] += "<br>"
-
-                    count += 1
-                    modified_notes.append(note)
-                else:
-                    out.write(word + "\n")
-
-                progressCount += 1
+                note = collection.get_note(nid)
+                if update_note(note, options, config_data, db):
+                    updated.append(note)
+                elif options["word_field"] in note:
+                    word = sentences.strip_html(note[options["word_field"]])
+                    if word:
+                        not_found.append(word)
+        finally:
+            db.close()
 
         undo_entry_id = collection.add_custom_undo_entry("Sentence Adder Batch Edit")
-        changes = collection.update_notes(modified_notes)
-        collection.merge_undo_entries(undo_entry_id)
+        if updated:
+            collection.update_notes(updated)
+        changes = collection.merge_undo_entries(undo_entry_id)
 
-        return OpChangesWithCount(changes=changes, count=len(modified_notes))
+        operation.not_found = not_found
+        return OpChangesWithCount(changes=changes, count=len(updated))
 
-    CollectionOp(parent=parent, op=operation).success(on_success).run_in_background()
+    operation.not_found = []
+
+    def success(changes):
+        on_complete(changes.count, operation.not_found)
+
+    CollectionOp(parent=parent, op=operation).success(success).run_in_background()
+
+
+def field_names(collection, nids):
+    """Field names of every note type in the selection, in order."""
+    names = []
+    seen = set()
+    for nid in nids:
+        for name in collection.get_note(nid).keys():
+            if name not in seen:
+                seen.add(name)
+                names.append(name)
+    return names
 
 
 class SentenceBatchEdit(QDialog):
@@ -152,48 +168,43 @@ class SentenceBatchEdit(QDialog):
         self.setWindowTitle("Sentence Batch Adder")
         self.browser = browser
         self.nids = nids
+        self.mw = browser.mw
 
         self.resize(400, 300)
 
         layout = QVBoxLayout()
-
         topLayout = QFormLayout()
 
-        self.senComboBox = QComboBox()
+        config_data = editor.get_config()
+        fields = field_names(self.mw.col, nids)
+
         self.wordsComboBox = QComboBox()
+        self.senComboBox = QComboBox()
         self.transComboBox = QComboBox()
-
-        nid = self.nids[0]
-        self.mw = self.browser.mw
-        note_type = self.mw.col.get_note(nid).note_type()
-        fields = self.mw.col.models.field_names(note_type)
-
         self.overwrite = QCheckBox()
 
-        self.senComboBox.addItems(fields)
-        self.senComboBox.setCurrentText(fields[0])
-
         self.wordsComboBox.addItems(fields)
-        self.wordsComboBox.setCurrentText(fields[0])
-
+        self.senComboBox.addItems(fields)
         self.transComboBox.addItems([""] + fields)
-        self.transComboBox.setCurrentText("")
 
-        self.auto_add_rb = QRadioButton("Auto Add")
-        self.all_sen_win_rb = QRadioButton("Open All Sentences Window")
+        self.selectField(self.wordsComboBox, config_data.get("batch_word_field"), fields[0])
+        self.selectField(self.senComboBox, config_data.get("batch_sen_field"),
+                         fields[1] if len(fields) > 1 else fields[0])
+        self.selectField(self.transComboBox, config_data.get("batch_trans_field"), "")
 
         topLayout.addRow(QLabel("Overwrite existing fields"), self.overwrite)
-
         topLayout.addRow(QLabel("<b>Select fields and start batch add</b>"))
-
         topLayout.addRow(QLabel("Select words field"), self.wordsComboBox)
         topLayout.addRow(QLabel("Select sentence field"), self.senComboBox)
-        if get_config().get("db_contain_pair", "false") == "true":
-            topLayout.addRow(QLabel("Selected translated sentence field"), self.transComboBox)
 
+        db_path = editor.config_store.db_path(config_data)
+        self.hasTranslations = bool(db_path) and sentences.has_translations(db_path)
+        if self.hasTranslations:
+            topLayout.addRow(QLabel("Select translated sentence field"), self.transComboBox)
 
-        # topLayout.addRow(self.auto_add_rb)
-        # topLayout.addRow(self.all_sen_win_rb)
+        if not db_path:
+            topLayout.addRow(QLabel(
+                "<b>No language selected.</b><br>Open Tools &gt; Sentence Adder first."))
 
         buttonBoxLayout = QHBoxLayout()
 
@@ -209,34 +220,47 @@ class SentenceBatchEdit(QDialog):
         layout.addLayout(topLayout)
         layout.addLayout(buttonBoxLayout)
         self.setLayout(layout)
-        self.get_sen = None
 
-    def on_complete(self, result):
-        self.browser.model.endReset()
-        self.mw.progress.finish()
-        self.mw.reset()
-        tooltip("<b>Updated</b> {0} notes.".format(result), parent=self.browser)
+    @staticmethod
+    def selectField(combo, wanted, fallback):
+        if wanted and combo.findText(wanted) >= 0:
+            combo.setCurrentText(wanted)
+        else:
+            combo.setCurrentText(fallback)
+
+    def on_complete(self, updated, not_found):
+        message = "<b>Updated</b> %d notes." % updated
+        path = write_not_found(not_found)
+        if path:
+            message += "<br>%d words had no sentence, listed in<br>%s" % (
+                len(not_found), os.path.basename(path))
+        tooltip(message, parent=self.browser, period=5000)
         self.close()
 
     def startBatchAdder(self):
-        self.mw.checkpoint("sentence batch edit")
-        self.mw.progress.start()
-        self.browser.model.beginReset()
+        word_field = self.wordsComboBox.currentText()
+        sen_field = self.senComboBox.currentText()
+        trans_field = self.transComboBox.currentText() if self.hasTranslations else ""
 
-        wordField = self.wordsComboBox.currentText()
-        senField = self.senComboBox.currentText()
-        transField = self.transComboBox.currentText()
-        overwrite = self.overwrite.checkState() == Qt.CheckState.Checked
+        if sen_field == word_field:
+            tooltip("Pick a sentence field that is not the words field",
+                    parent=self.browser)
+            return
 
-        batch_edit_notes(
-            self,
-            self.nids,
-            wordField,
-            senField,
-            transField,
-            overwrite,
-            self.on_complete,
+        editor.config_store.update(
+            batch_word_field=word_field,
+            batch_sen_field=sen_field,
+            batch_trans_field=trans_field,
         )
+
+        options = {
+            "word_field": word_field,
+            "sen_field": sen_field,
+            "trans_field": trans_field,
+            "overwrite": self.overwrite.checkState() == Qt.CheckState.Checked,
+        }
+
+        batch_edit_notes(self, self.nids, options, self.on_complete)
 
 
 def onSentenceBatchEdit(browser):

@@ -73,9 +73,24 @@ class FakeCollectionOp:
         return result
 
 
+_installed = None
+
+
 def install(recorder=None):
-    """Put the fake modules in ``sys.modules`` and return the recorder."""
+    """Put the fake modules in ``sys.modules`` and return the recorder.
+
+    The add-on modules bind ``tooltip`` at import time, so every test file has
+    to share one recorder.
+    """
+    global _installed
+    if _installed is not None and recorder is None:
+        return _installed
     recorder = recorder or Recorder()
+    _installed = recorder
+
+    # the real anki package is used for notes and collections; import it before
+    # anything is faked, it does not survive a half imported anki.hooks
+    import anki.collection  # noqa: F401
 
     def module(name, **attrs):
         mod = types.ModuleType(name)

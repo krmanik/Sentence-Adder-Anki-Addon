@@ -40,7 +40,10 @@ def load_addon_module(module_name):
     """Import ``src/<module_name>.py`` with its relative imports working."""
     _ensure_package()
     full_name = "%s.%s" % (PACKAGE, module_name)
-    sys.modules.pop(full_name, None)
+    if full_name in sys.modules:
+        # the modules import each other, so every test file has to end up with
+        # the same module objects
+        return sys.modules[full_name]
     spec = importlib.util.spec_from_file_location(
         full_name, SRC / (module_name + ".py")
     )

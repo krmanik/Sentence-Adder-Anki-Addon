@@ -106,9 +106,22 @@ def test_add_language_stores_relative_name_and_dedupes(cfg):
     data = cfg.load()
     assert first == "English"
     assert second == "English2"
-    assert data["English"] == "eng.db"
-    assert data["English2"] == "eng2.db"
+    assert data["lang_db"]["English"] == "eng.db"
+    assert data["lang_db"]["English2"] == "eng2.db"
     assert data["all_lang"].count("English") == 1
+
+
+def test_a_language_named_like_a_setting_does_not_overwrite_it(cfg):
+    """Databases used to be stored as top level keys."""
+    db = os.path.join(cfg.lang_db_folder, "lang.db")
+    open(db, "w").close()
+    cfg.add_language("lang", db)
+    cfg.update(lang="lang", sen_len="42")
+
+    data = cfg.load()
+    assert data["sen_len"] == "42"
+    assert data["lang"] == "lang"
+    assert cfg.db_path(data) == db
 
 
 def test_remove_language_deletes_file_and_resets_selection(cfg):

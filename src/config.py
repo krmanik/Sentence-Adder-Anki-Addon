@@ -26,6 +26,10 @@ PLACEHOLDER_LANG = "-- Select Language --"
 DEFAULT_CONFIG = {
     "lang": " -- Select Language -- ",
     "all_lang": [PLACEHOLDER_LANG],
+    # language name -> database file name; up to 1.0.6 this was kept as
+    # top level keys, where a language called "lang" or "sen_len" overwrote
+    # the setting of the same name
+    "lang_db": {},
     "text_color": "",
     "word_color": "",
     "word_html": "",
@@ -95,10 +99,13 @@ class Config:
 
         merged = dict(DEFAULT_CONFIG)
         merged["all_lang"] = list(DEFAULT_CONFIG["all_lang"])
+        merged["lang_db"] = {}
         merged.update(data)
 
         if not isinstance(merged.get("all_lang"), list):
             merged["all_lang"] = list(DEFAULT_CONFIG["all_lang"])
+        if not isinstance(merged.get("lang_db"), dict):
+            merged["lang_db"] = {}
 
         if merged != data:
             self.save(merged)
@@ -130,8 +137,11 @@ class Config:
         if is_placeholder_lang(lang):
             return None
 
-        stored = config.get(lang)
-        if not stored:
+        stored = config.get("lang_db", {}).get(lang)
+        if not stored and lang not in DEFAULT_CONFIG:
+            # written by 1.0.6 or earlier, which stored the path at top level
+            stored = config.get(lang)
+        if not stored or not isinstance(stored, str):
             return None
 
         in_folder = os.path.join(self.lang_db_folder, os.path.basename(stored))
@@ -151,7 +161,7 @@ class Config:
             name = "%s%d" % (lang_name, suffix)
 
         config["all_lang"].append(name)
-        config[name] = os.path.basename(db_file_name)
+        config["lang_db"][name] = os.path.basename(db_file_name)
         self.save(config)
         return name
 
@@ -160,7 +170,9 @@ class Config:
         config = self.load()
         path = self.db_path(config, lang_name)
 
-        config.pop(lang_name, None)
+        config["lang_db"].pop(lang_name, None)
+        if lang_name not in DEFAULT_CONFIG:
+            config.pop(lang_name, None)
         if lang_name in config["all_lang"]:
             config["all_lang"].remove(lang_name)
         if config.get("lang") == lang_name:

@@ -82,58 +82,96 @@ def word_pattern(word):
     return re.compile(r"(?<!\w)%s(?!\w)" % re.escape(word), re.UNICODE | re.IGNORECASE)
 
 
+class SentenceDB:
+    """One language database, kept open across lookups.
+
+    The batch adder searches once per note, so opening the file again for
+    every word is wasted work.
+    """
+
+    def __init__(self, db_path, min_len=0, max_len=0, whole_word=False,
+                 limit=CANDIDATE_LIMIT, with_translation=None):
+        self.db_path = db_path
+        self.min_len = min_len
+        self.max_len = max_len
+        self.whole_word = whole_word
+        self.limit = limit
+        if with_translation is None:
+            with_translation = has_translations(db_path)
+        self.with_translation = with_translation
+        self._con = None
+
+    def _connect(self):
+        if self._con is None:
+            self._con = sqlite3.connect(self.db_path)
+        return self._con
+
+    def find(self, word):
+        """Return ``[(sentence, translation_or_None), ...]`` matching ``word``."""
+        word = strip_html(word)
+        if not self.db_path or not word:
+            return []
+
+        columns = "sentence, translation" if self.with_translation else "sentence"
+        sql = "SELECT %s FROM examples WHERE sentence LIKE ? ESCAPE '\\'" % columns
+        params = ["%" + escape_like(word) + "%"]
+
+        if self.max_len and self.max_len > 0:
+            sql += " AND length(sentence) <= ?"
+            params.append(self.max_len)
+        if self.min_len and self.min_len > 0:
+            sql += " AND length(sentence) >= ?"
+            params.append(self.min_len)
+
+        # over-fetch a little so that dropping partial-word hits still leaves
+        # enough candidates to choose from
+        sql_limit = self.limit * 5 if self.whole_word else self.limit
+        if sql_limit and sql_limit > 0:
+            sql += " LIMIT ?"
+            params.append(sql_limit)
+
+        try:
+            rows = self._connect().execute(sql, params).fetchall()
+        except sqlite3.Error:
+            return []
+
+        if self.whole_word:
+            pattern = word_pattern(word)
+            rows = [row for row in rows if pattern.search(row[0])]
+
+        if self.limit and self.limit > 0:
+            rows = rows[:self.limit]
+
+        if self.with_translation:
+            return [(row[0], row[1]) for row in rows]
+        return [(row[0], None) for row in rows]
+
+    def close(self):
+        if self._con is not None:
+            self._con.close()
+            self._con = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+
 def find_sentences(db_path, word, min_len=0, max_len=0, whole_word=False,
                    limit=CANDIDATE_LIMIT, with_translation=None):
-    """Return ``[(sentence, translation_or_None), ...]`` matching ``word``.
+    """One-off lookup; see :class:`SentenceDB`.
 
     ``whole_word`` is for languages that put spaces between words: the row is
     kept only when the word is not part of a longer word.  Unlike the old
     ``'% word %'`` search this still matches a word at the start or the end of
     a sentence, or one followed by punctuation.
     """
-    word = strip_html(word)
-    if not db_path or not word:
+    if not db_path:
         return []
-
-    if with_translation is None:
-        with_translation = has_translations(db_path)
-
-    columns = "sentence, translation" if with_translation else "sentence"
-    sql = "SELECT %s FROM examples WHERE sentence LIKE ? ESCAPE '\\'" % columns
-    params = ["%" + escape_like(word) + "%"]
-
-    if max_len and max_len > 0:
-        sql += " AND length(sentence) <= ?"
-        params.append(max_len)
-    if min_len and min_len > 0:
-        sql += " AND length(sentence) >= ?"
-        params.append(min_len)
-
-    # over-fetch a little so that dropping partial-word hits still leaves
-    # enough candidates to choose from
-    sql_limit = limit * 5 if whole_word else limit
-    if sql_limit and sql_limit > 0:
-        sql += " LIMIT ?"
-        params.append(sql_limit)
-
-    con = sqlite3.connect(db_path)
-    try:
-        rows = con.execute(sql, params).fetchall()
-    except sqlite3.Error:
-        return []
-    finally:
-        con.close()
-
-    if whole_word:
-        pattern = word_pattern(word)
-        rows = [row for row in rows if pattern.search(row[0])]
-
-    if limit and limit > 0:
-        rows = rows[:limit]
-
-    if with_translation:
-        return [(row[0], row[1]) for row in rows]
-    return [(row[0], None) for row in rows]
+    with SentenceDB(db_path, min_len, max_len, whole_word, limit,
+                    with_translation) as db:
+        return db.find(word)
 
 
 def pick_random(rows, count, rng=random):
