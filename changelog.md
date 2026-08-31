@@ -26,6 +26,10 @@
  - Send translations to their own field when adding from the editor, the way
    the batch adder already could.
  - Minimum sentence length next to the maximum.
+ - The options window is grouped into tabs (Sentences, Fields, Style,
+   Languages), colours show what they are set to, lengths and counts are
+   number boxes, the style tab previews the result, and the Languages tab
+   lists each database with how many sentences it holds.
  - The batch adder remembers the fields you picked and reports how many words
    had no sentence.
 

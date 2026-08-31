@@ -88,9 +88,22 @@ addon.config_store = store
 print("modules imported ok")
 
 dlg = addon.SenAddDialog()
-print("SenAddDialog ok, language:", dlg.templatesComboBox.currentText(),
-      "| min len field:", repr(dlg.senMinLenTextEdit.text()),
-      "| target field:", repr(dlg.targetFieldEdit.text()))
+print("SenAddDialog ok, tabs:", [dlg.tabs.tabText(i) for i in range(dlg.tabs.count())])
+print("   language:", dlg.templatesComboBox.currentText(),
+      "| sentences per word:", dlg.senNumSenSpin.value(),
+      "| longest:", dlg.senLenSpin.value(),
+      "| word colour:", repr(dlg.wordColor.text_value()))
+print("   languages listed:", [dlg.languageList.item(i).text()
+                               for i in range(dlg.languageList.count())])
+print("   style preview:", dlg.previewLabel.text())
+
+dlg.senNumSenSpin.setValue(3)
+dlg.senMinLenSpin.setValue(5)
+dlg.wordHTMLEdit.setText("<b>{{word}}</b>")
+dlg.saveConfigData()
+saved = store.load()
+print("   saved ->", {k: saved[k] for k in
+                      ("num_of_sen", "sen_min_len", "sen_len", "word_html", "word_color")})
 
 fields_dlg = addon.SenAddDialog(["Simplified", "Traditional", "Sentence"])
 combo = fields_dlg.targetFieldComboBox

@@ -243,3 +243,13 @@ def test_append_to_field_keeps_existing_content():
     assert sentences.append_to_field("", "new") == "new"
     assert sentences.append_to_field("old", "new") == "old<br>new"
     assert sentences.append_to_field("old", "") == "old"
+
+
+def test_count_sentences(tmp_path):
+    db = make_db(tmp_path, ["one cat", "two cats", "three cats"])
+
+    assert sentences.count_sentences(db) == 3
+
+    broken = tmp_path / "broken.db"
+    broken.write_text("not a database")
+    assert sentences.count_sentences(str(broken)) == 0

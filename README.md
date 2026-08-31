@@ -83,17 +83,24 @@
  The whole run is one undo step: ```Edit -> Undo``` puts every note back.
 
  ## Options
- | Option | Meaning |
- | --- | --- |
- | Language | Which sentence database is used |
- | Word Color / Sentence Color | Colors used for the word and the sentence |
- | Word HTML / Sentence HTML | Wrap ```{{word}}``` / ```{{sentence}}``` in your own html |
- | Maximum Sentence Length | Longest sentence to use, 0 for no limit |
- | Minimum Sentence Length | Shortest sentence to use, 0 for no limit |
- | Number of sentence | How many sentences are added per word |
- | Add sentences to field | Field the sentences go to, empty means the field the cursor is in. Opened from the editor's gear button it lists the fields of the open note type |
- | Add translation to field | Field the translations go to, empty keeps each translation under its sentence in the same field |
- | Sentences contain spaces | Match whole words, for languages written with spaces |
+ The options window (Tools -> Sentence Adder..., or the gear button in the
+ editor) has four tabs:
+
+ **Sentences** - which language database is used, how many sentences a word
+ gets, the shortest and longest sentence to use (0 for no limit), whether words
+ are matched whole (for languages written with spaces), and whether clicking
+ the editor button adds sentences straight away or opens a list to pick from.
+
+ **Fields** - which field the sentences go to and which field the translations
+ go to. Leave the translation field empty to keep each translation under its
+ sentence. Opened with the gear button in the editor, both are drop downs of
+ the fields of the note you are editing.
+
+ **Style** - colours for the word and the sentence, and your own html around
+ ```{{word}}``` and ```{{sentence}}```, with a preview of the result.
+
+ **Languages** - the databases in this profile with their sentence counts, and
+ the buttons to add or remove one.
 
  ## Using your own tsv file
  Untick ```Sentences downloaded from tatoeba.org``` in the create dialog, then a

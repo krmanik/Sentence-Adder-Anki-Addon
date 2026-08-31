@@ -73,6 +73,17 @@ def has_translations(db_path):
     return "translation" in columns
 
 
+def count_sentences(db_path):
+    """How many sentences a language database holds, 0 when unreadable."""
+    con = sqlite3.connect(db_path)
+    try:
+        return con.execute("SELECT count(*) FROM examples").fetchone()[0]
+    except sqlite3.Error:
+        return 0
+    finally:
+        con.close()
+
+
 def word_pattern(word):
     """Match ``word`` as a whole word.
 

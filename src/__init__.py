@@ -276,117 +276,228 @@ class CreateDBDialog(QDialog):
         self.loadPreview()
 
 
-class SenAddDialog(QDialog):
-    def __init__(self, field_names=None):
-        """``field_names`` are the fields of the note open in the editor.
+class ColorButton(QPushButton):
+    """A button showing the chosen colour, empty when none is set."""
 
-        When they are known the target field becomes a drop down of real field
-        names; opened from the Tools menu there is no note, so it stays a text
-        box.
-        """
+    def __init__(self, on_change=None):
+        QPushButton.__init__(self)
+        self.color = ""
+        self.on_change = on_change
+        self.clicked.connect(self.pick)
+        self.setMinimumWidth(120)
+
+    def pick(self):
+        dialog = QColorDialog(self)
+        if self.color:
+            dialog.setCurrentColor(QColor(self.color))
+        if dialog.exec():
+            color = dialog.currentColor()
+            self.setColor(color.name() if color.isValid() else "")
+
+    def setColor(self, color):
+        self.color = color if utils.is_hex_color(color or "") else ""
+        if self.color:
+            self.setText(self.color)
+            self.setStyleSheet(
+                "background-color: %s; color: %s;"
+                % (self.color, "#000" if self.isLight(self.color) else "#fff"))
+        else:
+            self.setText("default")
+            self.setStyleSheet("")
+        if self.on_change:
+            self.on_change()
+
+    def text_value(self):
+        return self.color
+
+    @staticmethod
+    def isLight(color):
+        r, g, b = (int(color[i:i + 2], 16) for i in (1, 3, 5))
+        return (r * 299 + g * 587 + b * 114) / 1000 > 140
+
+
+class SenAddDialog(QDialog):
+    """The options, grouped into tabs.
+
+    ``field_names`` are the fields of the note open in the editor.  When they
+    are known the target fields become drop downs of real field names; opened
+    from the Tools menu there is no note, so they stay text boxes.
+    """
+
+    SAMPLE_SENTENCE = "The cat sleeps on the sofa."
+    SAMPLE_WORD = "cat"
+    SAMPLE_TRANSLATION = "Die Katze schläft auf dem Sofa."
+
+    def __init__(self, field_names=None):
         QDialog.__init__(self)
         mw.setupDialogGC(self)
         self.setWindowTitle(anki_addon_name)
-        self.resize(400, 300)
-
         self.field_names = list(field_names or [])
 
-        layout = QVBoxLayout()
-
-        topLayout = QFormLayout()
-
-        self.templatesComboBox = QComboBox()
-
-        self.sentenceColor = QPushButton()
-        self.sentenceColor.clicked.connect(self.openColorDlgSen)
-
-        self.wordColor = QPushButton()
-        self.wordColor.clicked.connect(self.openColorDlgWord)
-
-        self.auto_add_rb = QRadioButton("Auto Add")
-        self.all_sen_win_rb = QRadioButton("Open All Sentences Window")
-
-        self.ch_sen_contain_space_cb = QCheckBox("Sentences contain spaces (match whole words)")
-        self.ch_sen_contain_space_cb.setChecked(False)
-
-        self.wordHTMLTextEdit = QTextEdit()
-        self.senHTMLTextEdit = QTextEdit()
-        self.senLenTextEdit = QLineEdit()
-        self.senMinLenTextEdit = QLineEdit()
-        self.senNumSenTextEdit = QLineEdit()
-        self.targetFieldEdit = QLineEdit()
-        self.targetFieldComboBox = QComboBox()
-        self.transFieldEdit = QLineEdit()
-        self.transFieldComboBox = QComboBox()
-
         config_data = config_store.load()
-        self.templatesComboBox.addItems(config_data['all_lang'])
-        self.templatesComboBox.setCurrentText(config_data['lang'])
-        self.sentenceColor.setText(config_data['text_color'])
-        self.wordColor.setText(config_data['word_color'])
-        self.wordHTMLTextEdit.setPlainText(config_data['word_html'])
-        self.senHTMLTextEdit.setPlainText(config_data['sen_html'])
 
-        auto_add = config_mod.as_bool(config_data['auto_add'], True)
-        if config_mod.as_bool(config_data['open_all_sen_window']) == auto_add:
-            # both on or both off: fall back to auto add
-            auto_add = True
-        self.auto_add_rb.setChecked(auto_add)
-        self.all_sen_win_rb.setChecked(not auto_add)
-
-        self.ch_sen_contain_space_cb.setChecked(config_mod.as_bool(config_data['sen_contain_space']))
-
-        self.senLenTextEdit.setText(str(config_data['sen_len']))
-        self.senMinLenTextEdit.setText(str(config_data['sen_min_len']))
-        self.senNumSenTextEdit.setText(str(config_data['num_of_sen']))
-        self.setUpTargetField(str(config_data['target_field']))
-        self.setUpTransField(str(config_data['target_trans_field']))
-
-        topLayout.addRow(QLabel("<b>Sentence</b>"))
-
-        topLayout.addRow(QLabel("Language"), self.templatesComboBox)
-        topLayout.addRow(QLabel("Word Color"), self.wordColor)
-        topLayout.addRow(QLabel("Sentence Color"), self.sentenceColor)
-        topLayout.addRow(QLabel("Word HTML\nwrap {{word}} in html tag"), self.wordHTMLTextEdit)
-        topLayout.addRow(QLabel("Sentence HTML\nwrap {{sentence}} in html tag"), self.senHTMLTextEdit)
-        topLayout.addRow(QLabel("Maximum Sentence Length\n0 = no limit"), self.senLenTextEdit)
-        topLayout.addRow(QLabel("Minimum Sentence Length\n0 = no limit"), self.senMinLenTextEdit)
-        topLayout.addRow(QLabel("Number of sentence"), self.senNumSenTextEdit)
-        topLayout.addRow(QLabel("Add sentences to field"), self.targetFieldWidget())
-        topLayout.addRow(QLabel("Add translation to field"), self.transFieldWidget())
-        topLayout.addRow(self.ch_sen_contain_space_cb)
-
-        topLayout.addRow(self.auto_add_rb)
-        topLayout.addRow(self.all_sen_win_rb)
-
-        topLayout.addRow(QLabel("<b>Database</b>"))
-
-        self.createButton = QPushButton()
-        self.createButton.setText("Add Language")
-        self.createButton.clicked.connect(self.createDBFromTSV)
-        topLayout.addRow(QLabel("Add New Language Database"), self.createButton)
-
-        self.removeButton = QPushButton()
-        self.removeButton.setText("Remove Language")
-        self.removeButton.clicked.connect(self.deleteLandFromDB)
-        topLayout.addRow(QLabel("Remove Language From Database"), self.removeButton)
-
-        buttonBoxLayout = QHBoxLayout()
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.buildSentencesTab(config_data), "Sentences")
+        self.tabs.addTab(self.buildFieldsTab(config_data), "Fields")
+        self.tabs.addTab(self.buildStyleTab(config_data), "Style")
+        self.tabs.addTab(self.buildLanguagesTab(), "Languages")
 
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.addButton("Ok", QDialogButtonBox.ButtonRole.AcceptRole)
         self.buttonBox.addButton("Close", QDialogButtonBox.ButtonRole.RejectRole)
         self.buttonBox.addButton("Help", QDialogButtonBox.ButtonRole.HelpRole)
-
         self.buttonBox.accepted.connect(self.saveConfigData)
         self.buttonBox.rejected.connect(self.close)
         self.buttonBox.helpRequested.connect(self.openHelpInBrowser)
 
-        buttonBoxLayout.addWidget(self.buttonBox)
-
-        layout.addLayout(topLayout)
-        layout.addLayout(buttonBoxLayout)
+        layout = QVBoxLayout()
+        layout.addWidget(self.tabs)
+        layout.addWidget(self.buttonBox)
         self.setLayout(layout)
+        self.resize(520, 460)
+
+        self.updatePreview()
+
+    # tabs ##################################################################
+
+    def buildSentencesTab(self, config_data):
+        self.templatesComboBox = QComboBox()
+        self.templatesComboBox.addItems(config_data['all_lang'])
+        self.templatesComboBox.setCurrentText(config_data['lang'])
+
+        self.senNumSenSpin = QSpinBox()
+        self.senNumSenSpin.setRange(1, 50)
+        self.senNumSenSpin.setValue(max(1, config_mod.as_int(config_data['num_of_sen'], 2)))
+
+        self.senMinLenSpin = QSpinBox()
+        self.senMinLenSpin.setRange(0, 9999)
+        self.senMinLenSpin.setSpecialValueText("no limit")
+        self.senMinLenSpin.setValue(config_mod.as_int(config_data['sen_min_len'], 0))
+
+        self.senLenSpin = QSpinBox()
+        self.senLenSpin.setRange(0, 9999)
+        self.senLenSpin.setSpecialValueText("no limit")
+        self.senLenSpin.setValue(config_mod.as_int(config_data['sen_len'], 30))
+
+        self.ch_sen_contain_space_cb = QCheckBox(
+            "Match whole words (languages written with spaces)")
+        self.ch_sen_contain_space_cb.setChecked(
+            config_mod.as_bool(config_data['sen_contain_space']))
+
+        self.auto_add_rb = QRadioButton("Add sentences straight away")
+        self.all_sen_win_rb = QRadioButton("Let me pick from a list")
+        auto_add = config_mod.as_bool(config_data['auto_add'], True)
+        if config_mod.as_bool(config_data['open_all_sen_window']) == auto_add:
+            auto_add = True  # both on or both off
+        self.auto_add_rb.setChecked(auto_add)
+        self.all_sen_win_rb.setChecked(not auto_add)
+
+        form = QFormLayout()
+        form.addRow(QLabel("Language"), self.templatesComboBox)
+        form.addRow(QLabel("Sentences per word"), self.senNumSenSpin)
+        form.addRow(QLabel("Shortest sentence"), self.senMinLenSpin)
+        form.addRow(QLabel("Longest sentence"), self.senLenSpin)
+        form.addRow(self.ch_sen_contain_space_cb)
+
+        clicking = QGroupBox("When the editor button is clicked")
+        clickingLayout = QVBoxLayout()
+        clickingLayout.addWidget(self.auto_add_rb)
+        clickingLayout.addWidget(self.all_sen_win_rb)
+        clicking.setLayout(clickingLayout)
+
+        return self.asTab(form, clicking)
+
+    def buildFieldsTab(self, config_data):
+        self.targetFieldEdit = QLineEdit()
+        self.targetFieldComboBox = QComboBox()
+        self.transFieldEdit = QLineEdit()
+        self.transFieldComboBox = QComboBox()
+
+        self.setUpTargetField(str(config_data['target_field']))
+        self.setUpTransField(str(config_data['target_trans_field']))
+
+        form = QFormLayout()
+        form.addRow(QLabel("Add sentences to"), self.targetFieldWidget())
+        form.addRow(QLabel("Add translation to"), self.transFieldWidget())
+
+        if self.field_names:
+            hint = QLabel("The fields listed are the ones of the note you are editing.")
+        else:
+            hint = QLabel(
+                "Type a field name, or open these options with the gear button in "
+                "the editor to pick from the fields of the note you are editing.")
+        hint.setWordWrap(True)
+
+        return self.asTab(form, hint)
+
+    def buildStyleTab(self, config_data):
+        self.wordColor = ColorButton(self.updatePreview)
+        self.wordColor.setColor(config_data['word_color'])
+        self.sentenceColor = ColorButton(self.updatePreview)
+        self.sentenceColor.setColor(config_data['text_color'])
+
+        self.wordHTMLEdit = QLineEdit(config_data['word_html'])
+        self.wordHTMLEdit.setPlaceholderText("<b>{{word}}</b>")
+        self.wordHTMLEdit.textChanged.connect(self.updatePreview)
+
+        self.senHTMLEdit = QLineEdit(config_data['sen_html'])
+        self.senHTMLEdit.setPlaceholderText("<i>{{sentence}}</i>")
+        self.senHTMLEdit.textChanged.connect(self.updatePreview)
+
+        self.previewLabel = QLabel()
+        self.previewLabel.setWordWrap(True)
+        self.previewLabel.setTextFormat(Qt.TextFormat.RichText)
+
+        preview = QGroupBox("Preview")
+        previewLayout = QVBoxLayout()
+        previewLayout.addWidget(self.previewLabel)
+        preview.setLayout(previewLayout)
+
+        form = QFormLayout()
+        form.addRow(QLabel("Word colour"), self.wordColor)
+        form.addRow(QLabel("Sentence colour"), self.sentenceColor)
+        form.addRow(QLabel("Wrap the word in"), self.wordHTMLEdit)
+        form.addRow(QLabel("Wrap the sentence in"), self.senHTMLEdit)
+
+        return self.asTab(form, preview)
+
+    def buildLanguagesTab(self):
+        self.languageList = QListWidget()
+        self.reloadLanguageList()
+
+        self.createButton = QPushButton("Add Language...")
+        self.createButton.clicked.connect(self.createDBFromTSV)
+        self.removeButton = QPushButton("Remove Language...")
+        self.removeButton.clicked.connect(self.deleteLandFromDB)
+
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.createButton)
+        buttons.addWidget(self.removeButton)
+        buttons.addStretch()
+
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Sentence databases in this profile"))
+        layout.addWidget(self.languageList)
+        layout.addLayout(buttons)
+
+        tab = QWidget()
+        tab.setLayout(layout)
+        return tab
+
+    @staticmethod
+    def asTab(*widgets):
+        layout = QVBoxLayout()
+        for widget in widgets:
+            if isinstance(widget, QLayout):
+                layout.addLayout(widget)
+            else:
+                layout.addWidget(widget)
+        layout.addStretch()
+        tab = QWidget()
+        tab.setLayout(layout)
+        return tab
+
+    # target fields #########################################################
 
     def setUpTargetField(self, current):
         """Fill the target field widget with ``current`` selected."""
@@ -442,28 +553,38 @@ class SenAddDialog(QDialog):
             return self.transFieldComboBox.currentData() or ""
         return self.transFieldEdit.text().strip()
 
+    # preview ###############################################################
+
+    def styleConfig(self):
+        return {
+            "word_color": self.wordColor.text_value(),
+            "text_color": self.sentenceColor.text_value(),
+            "word_html": self.wordHTMLEdit.text(),
+            "sen_html": self.senHTMLEdit.text(),
+        }
+
+    def updatePreview(self):
+        if not hasattr(self, "previewLabel"):
+            return
+        html = sentences.format_sentence(
+            self.SAMPLE_SENTENCE, self.SAMPLE_WORD, self.styleConfig())
+        self.previewLabel.setText(html + "<br>" + self.SAMPLE_TRANSLATION)
+
+    # saving ################################################################
+
     def saveConfigData(self):
-        text_color = self.sentenceColor.text()
-        word_color = self.wordColor.text()
-
-        if not utils.is_hex_color(text_color) and text_color != "":
-            text_color = "#000000"
-
-        if not utils.is_hex_color(word_color) and word_color != "":
-            word_color = "#000000"
-
         config_store.update(
             lang=self.templatesComboBox.currentText(),
-            text_color=text_color,
-            word_color=word_color,
-            word_html=self.wordHTMLTextEdit.toPlainText(),
-            sen_html=self.senHTMLTextEdit.toPlainText(),
+            text_color=self.sentenceColor.text_value(),
+            word_color=self.wordColor.text_value(),
+            word_html=self.wordHTMLEdit.text(),
+            sen_html=self.senHTMLEdit.text(),
             auto_add="true" if self.auto_add_rb.isChecked() else "false",
             open_all_sen_window="true" if self.all_sen_win_rb.isChecked() else "false",
             sen_contain_space="true" if self.ch_sen_contain_space_cb.isChecked() else "false",
-            sen_len=self.senLenTextEdit.text().strip(),
-            sen_min_len=self.senMinLenTextEdit.text().strip(),
-            num_of_sen=self.senNumSenTextEdit.text().strip(),
+            sen_len=str(self.senLenSpin.value()),
+            sen_min_len=str(self.senMinLenSpin.value()),
+            num_of_sen=str(self.senNumSenSpin.value()),
             target_field=self.targetFieldValue(),
             target_trans_field=self.transFieldValue(),
         )
@@ -473,32 +594,13 @@ class SenAddDialog(QDialog):
     def openHelpInBrowser(self):
         webbrowser.open('https://github.com/krmanik/Sentence-Adder-Anki-Addon/issues')
 
+    # languages #############################################################
+
     def createDBFromTSV(self):
         dlg = CreateDBDialog()
         dlg.finished.connect(self.reloadLanguages)
         dlg.exec()
         self.moveFront()
-
-    def openColorDlgSen(self):
-        dialog = QColorDialog()
-        color = dialog.getColor()
-        if color.isValid():
-            self.sentenceColor.setText(color.name())
-        else:
-            self.sentenceColor.setText("")
-
-    def openColorDlgWord(self):
-        dialog = QColorDialog()
-        color = dialog.getColor()
-        if color.isValid():
-            self.wordColor.setText(color.name())
-        else:
-            self.wordColor.setText("")
-
-    def moveFront(self):
-        self.setFocus()
-        self.activateWindow()
-        self.raise_()
 
     def deleteLandFromDB(self):
         dlg = RemoveLangDBDialog()
@@ -506,11 +608,34 @@ class SenAddDialog(QDialog):
         dlg.exec()
         self.moveFront()
 
+    def moveFront(self):
+        self.setFocus()
+        self.activateWindow()
+        self.raise_()
+
     def reloadLanguages(self):
         config_data = config_store.load()
         self.templatesComboBox.clear()
         self.templatesComboBox.addItems(config_data['all_lang'])
         self.templatesComboBox.setCurrentText(config_data['lang'])
+        self.reloadLanguageList()
+
+    def reloadLanguageList(self):
+        """List the languages with what their database holds."""
+        config_data = config_store.load()
+        self.languageList.clear()
+        for name in config_data['all_lang']:
+            if config_mod.is_placeholder_lang(name):
+                continue
+            path = config_store.db_path(config_data, name)
+            if not path:
+                self.languageList.addItem("%s - database file missing" % name)
+                continue
+            kind = "sentence pairs" if sentences.has_translations(path) else "sentences"
+            self.languageList.addItem(
+                "%s - %d %s" % (name, sentences.count_sentences(path), kind))
+        if self.languageList.count() == 0:
+            self.languageList.addItem("No languages yet. Add one below.")
 
 
 def showSenAdder(field_names=None):
