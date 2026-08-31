@@ -116,3 +116,106 @@ def test_progress_callback_is_batched(tmp_path):
 
     assert count == 25
     assert seen == [10, 20]
+
+
+# choosing columns from the file ###########################################
+
+
+TATOEBA_PAIRS = [
+    "1\t我們試試看！\t1176908\tLet's try!",
+    "2\t我该去睡觉了。\t1277\tI have to go to sleep.",
+]
+
+
+def test_the_reported_tatoeba_pair_file_is_read_without_being_described(tmp_path):
+    """Ticking only one of the two old checkboxes stored the id column."""
+    tsv = write_tsv(tmp_path, "cmn.tsv", TATOEBA_PAIRS)
+    db_file = str(tmp_path / "cmn.db")
+
+    count = tsv_import.import_tsv(tsv, db_file)
+
+    assert count == 2
+    assert rows(db_file, "sentence, translation")[0] == ("我們試試看！", "Let's try!")
+
+
+@pytest.mark.parametrize(
+    "lines,expected",
+    [
+        (TATOEBA_PAIRS, {"sentence": 1, "translation": 3, "id": 0}),
+        (["1\tcmn\t我們試試看！", "2\tcmn\t我该去睡觉了。"],
+         {"sentence": 2, "translation": None, "id": None}),
+        (["我們試試看！", "我该去睡觉了。"],
+         {"sentence": 0, "translation": None, "id": None}),
+        (["我們試試看！\tLet's try!", "我该去睡觉了。\tI have to go."],
+         {"sentence": 0, "translation": 1, "id": None}),
+        # sentence id, sentence, translation (a "sentences with audio" export)
+        (["332421\t我們試試看！\tLet's try!", "1277\t我该去睡觉了。\tI have to go."],
+         {"sentence": 1, "translation": 2, "id": 0}),
+    ],
+)
+def test_layout_detection(tmp_path, lines, expected):
+    tsv = write_tsv(tmp_path, "detect.tsv", lines)
+    assert tsv_import.detect_file(tsv) == expected
+
+
+def test_preview_returns_the_first_rows_and_the_layout(tmp_path):
+    tsv = write_tsv(tmp_path, "cmn.tsv", TATOEBA_PAIRS * 20)
+
+    preview, layout = tsv_import.preview_file(tsv, limit=5)
+
+    assert len(preview) == 5
+    assert preview[0] == ["1", "我們試試看！", "1176908", "Let's try!"]
+    assert layout["sentence"] == 1
+
+
+def test_columns_chosen_by_hand_win_over_detection(tmp_path):
+    """What the user picks in the preview is what gets imported."""
+    tsv = write_tsv(tmp_path, "cmn.tsv", TATOEBA_PAIRS)
+    db_file = str(tmp_path / "cmn.db")
+
+    count = tsv_import.import_tsv(
+        tsv, db_file, layout={"sentence": 3, "translation": 1, "id": None})
+
+    assert count == 2
+    assert rows(db_file, "sentence, translation")[0] == ("Let's try!", "我們試試看！")
+
+
+def test_the_tatoeba_id_is_kept_when_the_column_is_chosen(tmp_path):
+    tsv = write_tsv(tmp_path, "cmn.tsv", TATOEBA_PAIRS)
+    db_file = str(tmp_path / "cmn.db")
+
+    tsv_import.import_tsv(tsv, db_file)
+
+    assert rows(db_file, "sentence, tatoeba_id")[0] == ("我們試試看！", 1)
+
+
+def test_a_database_without_an_id_column_has_no_id_column(tmp_path):
+    tsv = write_tsv(tmp_path, "own.tsv", ["I like cats."])
+    db_file = str(tmp_path / "own.db")
+
+    tsv_import.import_tsv(tsv, db_file)
+
+    con = sqlite3.connect(db_file)
+    columns = [row[1] for row in con.execute("PRAGMA table_info(examples)")]
+    con.close()
+    assert columns == ["id", "sentence"]
+
+
+def test_a_byte_order_mark_does_not_end_up_in_the_first_sentence(tmp_path):
+    path = tmp_path / "bom.tsv"
+    path.write_text("I like cats.\nShe reads.\n", encoding="utf-8-sig")
+    db_file = str(tmp_path / "bom.db")
+
+    tsv_import.import_tsv(str(path), db_file)
+
+    assert rows(db_file)[0] == ("I like cats.",)
+
+
+def test_rows_too_short_for_the_chosen_columns_are_skipped(tmp_path):
+    tsv = write_tsv(tmp_path, "ragged.tsv", [
+        "1\t我們試試看！\t1176908\tLet's try!",
+        "2\t短い",
+    ])
+    db_file = str(tmp_path / "ragged.db")
+
+    assert tsv_import.import_tsv(tsv, db_file) == 1

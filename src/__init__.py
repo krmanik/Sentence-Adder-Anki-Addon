@@ -27,6 +27,7 @@ from aqt.utils import tooltip
 from . import utils
 from . import config as config_mod
 from . import tsv_import
+from . import sentences
 from . import editor
 from . import batch_edit
 
@@ -42,17 +43,22 @@ config_store.load()
 
 
 class CreateDBDialog(QDialog):
+    """Pick a file, look at it, say which column is what, then import."""
+
+    PREVIEW_ROWS = 15
+
     def __init__(self):
         QDialog.__init__(self)
         mw.setupDialogGC(self)
         self.setWindowTitle("Create New DB")
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+        self.resize(700, 520)
 
         self.filepath = ""
         self.fileName = ""
+        self.previewRows = []
 
         layout = QVBoxLayout()
-
         topLayout = QFormLayout()
 
         self.selectFileFolderButton = QPushButton()
@@ -60,18 +66,29 @@ class CreateDBDialog(QDialog):
         self.selectFileFolderButton.clicked.connect(self.selectFileFolderDlg)
 
         self.tsvFilePath = QLineEdit()
+        self.tsvFilePath.setReadOnly(True)
         topLayout.addRow(self.selectFileFolderButton, self.tsvFilePath)
 
         self.langNameEdit = QLineEdit()
         topLayout.addRow(QLabel("Enter Language Name"), self.langNameEdit)
 
-        self.ch_sen_downloaded_from_tatoeba_cb = QCheckBox("Sentences downloaded from tatoeba.org")
-        self.ch_sen_downloaded_from_tatoeba_cb.setChecked(True)
-        topLayout.addRow(self.ch_sen_downloaded_from_tatoeba_cb)
+        self.previewTable = QTableWidget(self)
+        self.previewTable.verticalHeader().setVisible(False)
+        self.previewTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        self.ch_sen_contains_pair_cb = QCheckBox("File contains sentences pair")
-        self.ch_sen_contains_pair_cb.setChecked(False)
-        topLayout.addRow(self.ch_sen_contains_pair_cb)
+        self.sentenceComboBox = QComboBox()
+        self.translationComboBox = QComboBox()
+        self.idComboBox = QComboBox()
+        for combo in (self.sentenceComboBox, self.translationComboBox, self.idComboBox):
+            combo.currentIndexChanged.connect(self.updateExample)
+
+        self.exampleLabel = QLabel("Select a file to see what it holds.")
+        self.exampleLabel.setWordWrap(True)
+
+        columnLayout = QFormLayout()
+        columnLayout.addRow(QLabel("Sentence column"), self.sentenceComboBox)
+        columnLayout.addRow(QLabel("Translation column"), self.translationComboBox)
+        columnLayout.addRow(QLabel("Tatoeba id column"), self.idComboBox)
 
         buttonBoxLayout = QHBoxLayout()
 
@@ -85,8 +102,92 @@ class CreateDBDialog(QDialog):
         buttonBoxLayout.addWidget(self.buttonBox)
 
         layout.addLayout(topLayout)
+        layout.addWidget(QLabel("<b>First lines of the file</b>"))
+        layout.addWidget(self.previewTable)
+        layout.addLayout(columnLayout)
+        layout.addWidget(self.exampleLabel)
         layout.addLayout(buttonBoxLayout)
         self.setLayout(layout)
+
+    # preview ###############################################################
+
+    def loadPreview(self):
+        """Show the start of the file and preselect the detected columns."""
+        try:
+            rows, layout = tsv_import.preview_file(self.filepath, self.PREVIEW_ROWS)
+        except Exception as e:
+            tooltip("Could not read the file: %s" % e)
+            return
+
+        self.previewRows = rows
+        width = max([len(row) for row in rows] or [0])
+
+        self.previewTable.clear()
+        self.previewTable.setColumnCount(width)
+        self.previewTable.setRowCount(len(rows))
+        self.previewTable.setHorizontalHeaderLabels(
+            ["Column %d" % (i + 1) for i in range(width)])
+        for r, row in enumerate(rows):
+            for c in range(width):
+                value = row[c] if c < len(row) else ""
+                self.previewTable.setItem(r, c, QTableWidgetItem(value))
+        self.previewTable.resizeColumnsToContents()
+
+        self.fillColumnChoices(width, layout)
+
+    def fillColumnChoices(self, width, layout):
+        for combo, optional in ((self.sentenceComboBox, False),
+                                (self.translationComboBox, True),
+                                (self.idComboBox, True)):
+            combo.blockSignals(True)
+            combo.clear()
+            if optional:
+                combo.addItem("none", None)
+            for i in range(width):
+                combo.addItem("Column %d" % (i + 1), i)
+            combo.blockSignals(False)
+
+        self.selectColumn(self.sentenceComboBox, layout.get("sentence"))
+        self.selectColumn(self.translationComboBox, layout.get("translation"))
+        self.selectColumn(self.idComboBox, layout.get("id"))
+        self.updateExample()
+
+    @staticmethod
+    def selectColumn(combo, column):
+        index = combo.findData(column)
+        combo.setCurrentIndex(index if index >= 0 else 0)
+
+    def chosenLayout(self):
+        return {
+            "sentence": self.sentenceComboBox.currentData(),
+            "translation": self.translationComboBox.currentData(),
+            "id": self.idComboBox.currentData(),
+        }
+
+    def updateExample(self):
+        """Show what the first usable line would be stored as."""
+        layout = self.chosenLayout()
+        if not self.previewRows or layout["sentence"] is None:
+            self.exampleLabel.setText("Select a file to see what it holds.")
+            return
+
+        for row in self.previewRows:
+            values = tsv_import.read_columns(row, layout)
+            if values:
+                break
+        else:
+            self.exampleLabel.setText(
+                "<b>Nothing would be imported.</b> Pick another sentence column.")
+            return
+
+        parts = ["sentence: %s" % values[0]]
+        columns = tsv_import.table_columns(layout)
+        for name, value in zip(columns[1:], values[1:]):
+            parts.append("%s: %s" % (
+                "translation" if name == "translation" else "tatoeba id", value))
+        self.exampleLabel.setText("Will be stored as &mdash; " + "<br>".join(parts))
+
+    # import ################################################################
 
     def createDB(self):
         if not self.filepath or not self.fileName:
@@ -101,19 +202,21 @@ class CreateDBDialog(QDialog):
             tooltip("File not found!")
             return
 
+        layout = self.chosenLayout()
+        if layout["sentence"] is None:
+            tooltip("Choose which column holds the sentences")
+            return
+
         config_store.ensure_dirs()
         db_file = os.path.join(config_store.lang_db_folder, self.fileName + ".db")
         if os.path.exists(db_file):
             tooltip("Already exists!, Rename tsv or delete db file")
             return
 
-        is_pair = self.ch_sen_contains_pair_cb.isChecked()
-        from_tatoeba = self.ch_sen_downloaded_from_tatoeba_cb.isChecked()
-
         mw.progress.start(label="Creating sentence database...", immediate=True)
         try:
             imported = tsv_import.import_tsv(
-                self.filepath, db_file, is_pair, from_tatoeba,
+                self.filepath, db_file, layout=layout,
                 on_progress=lambda n: mw.progress.update(label="Imported %d sentences..." % n),
             )
         except Exception as e:
@@ -123,16 +226,20 @@ class CreateDBDialog(QDialog):
             mw.progress.finish()
 
         if not imported:
-            tooltip("No sentences found in the file. Check the tatoeba option and try again.")
+            tooltip("No sentences found in that column. Check the preview and try again.")
             return
 
+        with_translation = sentences.has_translations(db_file)
         lang_name = config_store.add_language(self.langNameEdit.text().strip(), db_file)
-        config_store.update(lang=lang_name, db_contain_pair="true" if is_pair else "false")
+        config_store.update(
+            lang=lang_name, db_contain_pair="true" if with_translation else "false")
         self.close()
-        tooltip("Added %d sentences as '%s'" % (imported, lang_name))
+        tooltip("Added %d %s as '%s'" % (
+            imported, "sentence pairs" if with_translation else "sentences", lang_name))
 
     def selectFileFolderDlg(self):
-        filepath = QFileDialog.getOpenFileName(self, 'OpenFile', filter="TSV File (*.tsv *.csv *.txt)")[0]
+        filepath = QFileDialog.getOpenFileName(
+            self, 'OpenFile', filter="TSV File (*.tsv *.csv *.txt)")[0]
         if not filepath:
             return
         name, ext = os.path.splitext(os.path.basename(filepath))
@@ -142,6 +249,9 @@ class CreateDBDialog(QDialog):
         self.filepath = filepath
         self.fileName = name
         self.tsvFilePath.setText(filepath)
+        if not self.langNameEdit.text().strip():
+            self.langNameEdit.setText(name)
+        self.loadPreview()
 
 
 class SenAddDialog(QDialog):

@@ -107,6 +107,29 @@ store.update(target_field="")
 
 create = addon.CreateDBDialog()
 create.createDB()  # no file picked yet: must warn, not raise
+
+pairs = os.path.join(base, "cmn_pairs.tsv")
+with open(pairs, "w", encoding="utf-8") as f:
+    f.write("1\t\u6211\u5011\u8a66\u8a66\u770b\uff01\t1176908\tLet's try!\n")
+    f.write("2\t\u6211\u8be5\u53bb\u7761\u89c9\u4e86\u3002\t1277\tI have to go to sleep.\n")
+create.filepath = pairs
+create.fileName = "cmn_pairs"
+create.loadPreview()
+print("preview rows:", create.previewTable.rowCount(),
+      "columns:", create.previewTable.columnCount())
+print("preselected -> sentence:", create.sentenceComboBox.currentText(),
+      "| translation:", create.translationComboBox.currentText(),
+      "| id:", create.idComboBox.currentText())
+print("example:", create.exampleLabel.text())
+create.langNameEdit.setText("Chinese")
+create.createDB()
+imported = config_mod.Config(user_files).load()
+print("language added:", imported["all_lang"], "| current:", imported["lang"])
+import sqlite3 as _s
+con = _s.connect(os.path.join(lang_db, "cmn_pairs.db"))
+print("stored:", con.execute("select sentence, translation, tatoeba_id from examples").fetchall())
+con.close()
+store.update(lang="English")  # back to the language the rest of the checks use
 print("CreateDBDialog ok")
 
 remove = addon.RemoveLangDBDialog()
