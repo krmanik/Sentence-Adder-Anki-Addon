@@ -21,6 +21,7 @@ from aqt import mw
 from anki.hooks import addHook
 
 from anki.collection import OpChangesWithCount
+from anki.utils import ids2str
 from aqt.operations import CollectionOp
 
 from . import config as config_mod
@@ -151,14 +152,32 @@ def batch_edit_notes(parent, nids, options, on_complete):
 
 
 def field_names(collection, nids):
-    """Field names of every note type in the selection, in order."""
+    """Field names of every note type in the selection, in order.
+
+    Read from the note types rather than from the notes: a selection can hold
+    thousands of notes and the dialog only needs the handful of note types
+    they use.
+    """
     names = []
     seen = set()
-    for nid in nids:
-        for name in collection.get_note(nid).keys():
+
+    def add_all(field_list):
+        for name in field_list:
             if name not in seen:
                 seen.add(name)
                 names.append(name)
+
+    try:
+        mids = collection.db.list(
+            "select mid from notes where id in %s group by mid order by min(id)"
+            % ids2str(nids))
+        for mid in mids:
+            add_all(collection.models.field_names(collection.models.get(mid)))
+    except Exception:
+        # any unexpected database or api change: fall back to the notes
+        for nid in nids:
+            add_all(collection.get_note(nid).keys())
+
     return names
 
 

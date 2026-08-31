@@ -267,6 +267,17 @@ def test_field_names_covers_every_selected_note_type(col, store):
         "Word", "Sentence", "Translation", "Front", "Back"]
 
 
+def test_field_names_reads_note_types_not_every_note(col, store, monkeypatch):
+    model = note_type(col)
+    nids = [add_note(col, model, {"Word": "cat"}) for _ in range(5)]
+    loaded = []
+    real_get_note = col.get_note
+    monkeypatch.setattr(col, "get_note", lambda nid: loaded.append(nid) or real_get_note(nid))
+
+    assert batch_edit.field_names(col, nids) == ["Word", "Sentence", "Translation"]
+    assert loaded == []
+
+
 def test_number_of_sentences_setting_is_used(col, store):
     make_db(store, ["cat one", "cat two", "cat three", "cat four"])
     store.update(num_of_sen="3", sen_len="100")
