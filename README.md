@@ -92,6 +92,7 @@
  | Minimum Sentence Length | Shortest sentence to use, 0 for no limit |
  | Number of sentence | How many sentences are added per word |
  | Add sentences to field | Field the sentences go to, empty means the field the cursor is in. Opened from the editor's gear button it lists the fields of the open note type |
+ | Add translation to field | Field the translations go to, empty keeps each translation under its sentence in the same field |
  | Sentences contain spaces | Match whole words, for languages written with spaces |
 
  ## Using your own tsv file

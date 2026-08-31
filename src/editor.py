@@ -153,23 +153,39 @@ def getRandomSentence(word):
         rows, config_mod.as_int(config_data.get("num_of_sen"), 1))
 
 
+def field_index(note, name):
+    """The index of the field called ``name``, or None."""
+    if not name or note is None:
+        return None
+    for index, field in enumerate(note.keys()):
+        if field.lower() == name.strip().lower():
+            return index
+    return None
+
+
 def target_field_index(editor, config_data):
     """Which field the sentences go into.
 
     A field name can be set in the options; when it is empty, or the note type
     has no such field, the field the cursor is in is used.
     """
-    name = (config_data.get("target_field") or "").strip()
-    if name and editor.note is not None:
-        for index, field in enumerate(editor.note.keys()):
-            if field.lower() == name.lower():
-                return index
+    index = field_index(editor.note, config_data.get("target_field"))
+    if index is not None:
+        return index
 
     field = editor.currentField
     if field is None:
         # the editor drops currentField when the field loses focus
         field = getattr(editor, "last_field_index", None)
     return field
+
+
+def translation_field_index(editor, config_data, sentence_field):
+    """Which field the translations go into, or None to keep them inline."""
+    index = field_index(editor.note, config_data.get("target_trans_field"))
+    if index is None or index == sentence_field:
+        return None
+    return index
 
 
 def add_sentences(editor):
@@ -198,8 +214,16 @@ def add_sentences(editor):
             tooltip(error or "No sentences found.")
             return
 
+        trans_field = translation_field_index(editor, config_data, field)
+        if trans_field is not None and trans_field < len(editor.note.fields):
+            sentence_html, translation_html = sentences.render(rows, word, config_data)
+            editor.note.fields[trans_field] = sentences.append_to_field(
+                editor.note.fields[trans_field], translation_html)
+        else:
+            sentence_html = sentences.render_inline(rows, word, config_data)
+
         editor.note.fields[field] = sentences.append_to_field(
-            editor.note.fields[field], sentences.render_inline(rows, word, config_data))
+            editor.note.fields[field], sentence_html)
         editor.loadNote(focusTo=field)
 
     editor.web.evalWithCallback("window.getSelection().toString()", callback)

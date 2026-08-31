@@ -316,6 +316,8 @@ class SenAddDialog(QDialog):
         self.senNumSenTextEdit = QLineEdit()
         self.targetFieldEdit = QLineEdit()
         self.targetFieldComboBox = QComboBox()
+        self.transFieldEdit = QLineEdit()
+        self.transFieldComboBox = QComboBox()
 
         config_data = config_store.load()
         self.templatesComboBox.addItems(config_data['all_lang'])
@@ -338,6 +340,7 @@ class SenAddDialog(QDialog):
         self.senMinLenTextEdit.setText(str(config_data['sen_min_len']))
         self.senNumSenTextEdit.setText(str(config_data['num_of_sen']))
         self.setUpTargetField(str(config_data['target_field']))
+        self.setUpTransField(str(config_data['target_trans_field']))
 
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
@@ -350,6 +353,7 @@ class SenAddDialog(QDialog):
         topLayout.addRow(QLabel("Minimum Sentence Length\n0 = no limit"), self.senMinLenTextEdit)
         topLayout.addRow(QLabel("Number of sentence"), self.senNumSenTextEdit)
         topLayout.addRow(QLabel("Add sentences to field"), self.targetFieldWidget())
+        topLayout.addRow(QLabel("Add translation to field"), self.transFieldWidget())
         topLayout.addRow(self.ch_sen_contain_space_cb)
 
         topLayout.addRow(self.auto_add_rb)
@@ -401,6 +405,23 @@ class SenAddDialog(QDialog):
         index = self.targetFieldComboBox.findData(current)
         self.targetFieldComboBox.setCurrentIndex(index if index >= 0 else 0)
 
+    def setUpTransField(self, current):
+        """Where translations go; empty keeps them under their sentence."""
+        if not self.field_names:
+            self.transFieldEdit.setText(current)
+            self.transFieldEdit.setPlaceholderText(
+                "empty = under the sentence, same field")
+            return
+
+        self.transFieldComboBox.addItem("under the sentence, same field", "")
+        for name in self.field_names:
+            self.transFieldComboBox.addItem(name, name)
+        if current and current not in self.field_names:
+            self.transFieldComboBox.addItem("%s (other note type)" % current, current)
+
+        index = self.transFieldComboBox.findData(current)
+        self.transFieldComboBox.setCurrentIndex(index if index >= 0 else 0)
+
     def targetFieldWidget(self):
         if self.field_names:
             return self.targetFieldComboBox
@@ -410,6 +431,16 @@ class SenAddDialog(QDialog):
         if self.field_names:
             return self.targetFieldComboBox.currentData() or ""
         return self.targetFieldEdit.text().strip()
+
+    def transFieldWidget(self):
+        if self.field_names:
+            return self.transFieldComboBox
+        return self.transFieldEdit
+
+    def transFieldValue(self):
+        if self.field_names:
+            return self.transFieldComboBox.currentData() or ""
+        return self.transFieldEdit.text().strip()
 
     def saveConfigData(self):
         text_color = self.sentenceColor.text()
@@ -434,6 +465,7 @@ class SenAddDialog(QDialog):
             sen_min_len=self.senMinLenTextEdit.text().strip(),
             num_of_sen=self.senNumSenTextEdit.text().strip(),
             target_field=self.targetFieldValue(),
+            target_trans_field=self.transFieldValue(),
         )
         self.close()
         tooltip("Config saved!")

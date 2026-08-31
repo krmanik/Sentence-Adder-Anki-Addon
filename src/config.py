@@ -43,6 +43,7 @@ DEFAULT_CONFIG = {
     # added in 1.1.0
     "sen_min_len": "0",
     "target_field": "",
+    "target_trans_field": "",
 }
 
 

@@ -23,6 +23,8 @@
  - Choose the field sentences are added to (options -> Add sentences to field).
  - A gear button next to the add button in the editor opens those options, and
    there the field is picked from the fields of the note being edited.
+ - Send translations to their own field when adding from the editor, the way
+   the batch adder already could.
  - Minimum sentence length next to the maximum.
  - The batch adder remembers the fields you picked and reports how many words
    had no sentence.

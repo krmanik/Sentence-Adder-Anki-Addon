@@ -99,6 +99,10 @@ print("SenAddDialog with note fields ok, choices:",
       "| value:", repr(fields_dlg.targetFieldValue()))
 combo.setCurrentIndex(3)
 print("   picking 'Sentence' gives:", repr(fields_dlg.targetFieldValue()))
+trans = fields_dlg.transFieldComboBox
+print("   translation choices:", [trans.itemText(i) for i in range(trans.count())])
+trans.setCurrentIndex(2)
+print("   picking translation field gives:", repr(fields_dlg.transFieldValue()))
 
 store.update(target_field="NotInThisNoteType")
 kept = addon.SenAddDialog(["Simplified", "Traditional"])

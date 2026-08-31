@@ -251,3 +251,43 @@ def test_note_field_names_without_a_note(addon):
 
 def test_get_random_sentence_returns_none_without_a_database(addon):
     assert editor_mod.getRandomSentence("cat") is None
+
+
+def test_translation_can_go_to_its_own_field(addon):
+    make_db(addon, [("私は猫が好きです。", "I like cats.")], name="jpn.db", pair=True)
+    addon.update(num_of_sen="1", sen_len="100",
+                 target_field="Sentence", target_trans_field="Translation")
+    note = FakeNote(["猫", "", ""])
+    ed = FakeEditor(note, current_field=0, selection="猫")
+
+    editor_mod.add_sentences(ed)
+
+    assert note.fields[1] == "私は猫が好きです。<br>"
+    assert note.fields[2] == "I like cats.<br>"
+
+
+def test_translation_stays_inline_when_no_field_is_chosen(addon):
+    make_db(addon, [("私は猫が好きです。", "I like cats.")], name="jpn.db", pair=True)
+    addon.update(num_of_sen="1", sen_len="100", target_trans_field="")
+    note = FakeNote(["猫", "", ""])
+    ed = FakeEditor(note, current_field=1, selection="猫")
+
+    editor_mod.add_sentences(ed)
+
+    assert note.fields[1] == "私は猫が好きです。<br>I like cats.<br>"
+    assert note.fields[2] == ""
+
+
+def test_translation_field_equal_to_the_sentence_field_is_ignored(addon):
+    """Otherwise the sentences and their translations would be split apart."""
+    addon.update(target_field="Sentence", target_trans_field="Sentence")
+    ed = FakeEditor(FakeNote(["猫", "", ""]), current_field=0)
+
+    assert editor_mod.translation_field_index(ed, addon.load(), 1) is None
+
+
+def test_unknown_translation_field_keeps_translations_inline(addon):
+    addon.update(target_trans_field="Not a field")
+    ed = FakeEditor(FakeNote(["猫", "", ""]), current_field=0)
+
+    assert editor_mod.translation_field_index(ed, addon.load(), 0) is None
