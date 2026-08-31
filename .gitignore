@@ -4,3 +4,4 @@ src/__pycache__/
 src/meta.json
 __pycache__/
 .pytest_cache/
+dist/

@@ -49,6 +49,27 @@ A single test:
 `aqt` is only listed so an IDE can resolve the imports; at runtime Anki
 provides `anki` and `aqt` itself.
 
+## Build the .ankiaddon file
+
+```commandline
+python tools/build_ankiaddon.py
+```
+
+Writes `dist/sentence-adder-<version>.ankiaddon`, which is a zip of the
+*contents* of `src/` (`manifest.json` and `__init__.py` at the top level, the
+folder itself is not in the archive, as
+[the add-on docs](https://addon-docs.ankiweb.net/sharing.html) require).
+`__pycache__`, `.pyc` files, `meta.json` and `user_files` are left out:
+AnkiWeb rejects archives holding `__pycache__`, and `user_files` holds the
+sentence databases of whoever runs the build.
+
+Upload the file at <https://ankiweb.net/shared/addons/>. Bump the version in
+`src/manifest.json` (`human_version`) and in `anki_addon_version` in
+`src/__init__.py` first; a test checks that the two match.
+
+`min_point_version` in the manifest is the oldest Anki that can run the add-on
+(50 means 2.1.50; newer releases report versions like 250904 and compare fine).
+
 ## Check the dialogs against the installed Anki
 
 The tests fake Qt, so they cannot catch a Qt call that a newer Anki removed.
