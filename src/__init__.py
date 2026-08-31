@@ -15,8 +15,8 @@ anki_addon_version = "1.0.6"
 anki_addon_author = "Mani"
 anki_addon_license = "GPL 3.0 and later"
 
-import json
 import os
+import sys
 import webbrowser
 
 from aqt.qt import QFileDialog, Qt
@@ -25,6 +25,8 @@ from aqt.qt import *
 from aqt.utils import tooltip
 
 from . import utils
+from . import config as config_mod
+from . import tsv_import
 from . import editor
 from . import batch_edit
 
@@ -32,40 +34,11 @@ folder = os.path.dirname(__file__)
 libfolder = os.path.join(folder, "lib")
 sys.path.insert(0, libfolder)
 
-user_folder = folder + "/user_files/"
+user_folder = os.path.join(folder, "user_files")
 
-config_json = user_folder + "config.json"
-lang_db_folder = user_folder + "lang_db/"
-
-if not os.path.exists(user_folder):
-    os.mkdir(user_folder)
-
-if not os.path.exists(lang_db_folder):
-    os.mkdir(lang_db_folder)
-
-if not os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "",
-                   "word_color": "", "word_html": "", "sen_html": "",
-                   "auto_add": "true", "open_all_sen_window": "false", "sen_contain_space": "false",
-                   "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
-
-    with open(config_json, "w") as f:
-        json.dump(config_dict, f)
-
-if os.path.exists(config_json):
-    config_dict = {"lang": " -- Select Language -- ", "all_lang": ["-- Select Language --"], "text_color": "",
-                   "word_color": "", "word_html": "", "sen_html": "",
-                   "auto_add": "true", "open_all_sen_window": "false",
-                   "sen_contain_space": "false", "db_contain_pair": "false", "sen_len": "30", "num_of_sen": "2"}
-    config_dict_temp = {}
-
-    with open(config_json, "r") as f:
-        config_dict_temp = json.load(f)
-
-    config_dict = {**config_dict, **config_dict_temp}
-
-    with open(config_json, "w") as f:
-        json.dump(config_dict, f)
+config_store = config_mod.Config(user_folder)
+config_store.ensure_dirs()
+config_store.load()
 
 
 class CreateDBDialog(QDialog):
@@ -74,6 +47,9 @@ class CreateDBDialog(QDialog):
         mw.setupDialogGC(self)
         self.setWindowTitle("Create New DB")
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+
+        self.filepath = ""
+        self.fileName = ""
 
         layout = QVBoxLayout()
 
@@ -113,79 +89,59 @@ class CreateDBDialog(QDialog):
         self.setLayout(layout)
 
     def createDB(self):
-        import csv
-        import sqlite3
-
-        if len(self.fileName) > 0 and len(self.langNameEdit.text()) > 0:
-            db_file = lang_db_folder + self.fileName + ".db"
-            if os.path.exists(db_file):
-                tooltip("Already exists!, Rename tsv or delete db file")
-            else:
-                conn = sqlite3.connect(db_file)
-                curs = conn.cursor()
-
-                # if tsv contains pair then create two column, one for source and other for target
-                if self.ch_sen_contains_pair_cb.isChecked():
-                    curs.execute(
-                        "CREATE TABLE examples (id INTEGER PRIMARY KEY, sentence TEXT, translation TEXT);")
-                else:
-                    curs.execute(
-                        "CREATE TABLE examples (id INTEGER PRIMARY KEY, sentence TEXT);")
-
-                if os.path.exists(self.filepath):
-                    reader = csv.reader(open(self.filepath, 'r', encoding="utf-8"), delimiter='\t')
-                    for row in reader:
-                        if self.ch_sen_downloaded_from_tatoeba_cb.isChecked():
-                            if self.ch_sen_contains_pair_cb.isChecked():
-                                # if row contains error or multiple tab then it may cause errors
-                                if len(row) != 4:
-                                    continue
-                                to_db = [row[1], row[3]]
-                                curs.execute("INSERT INTO examples (sentence, translation) VALUES (?,?);", to_db)
-                            else:
-                                to_db = [row[2]]
-                                curs.execute("INSERT INTO examples (sentence) VALUES (?);", to_db)
-                        else:
-                            if self.ch_sen_contains_pair_cb.isChecked():
-                                to_db = [row[0], row[1]]
-                                curs.execute("INSERT INTO examples (sentence, translation) VALUES (?,?);", to_db)
-                            else:
-                                to_db = [row[0]]
-                                curs.execute("INSERT INTO examples (sentence) VALUES (?);", to_db)
-                    conn.commit()
-                    self.addNewLangToConfig(self.fileName, self.langNameEdit.text())
-                    self.close()
-                    tooltip("Database added, change config!")
-                else:
-                    tooltip("File not found!")
-        else:
+        if not self.filepath or not self.fileName:
             tooltip("Select a file first")
+            return
+
+        if not self.langNameEdit.text().strip():
+            tooltip("Enter a language name")
+            return
+
+        if not os.path.exists(self.filepath):
+            tooltip("File not found!")
+            return
+
+        config_store.ensure_dirs()
+        db_file = os.path.join(config_store.lang_db_folder, self.fileName + ".db")
+        if os.path.exists(db_file):
+            tooltip("Already exists!, Rename tsv or delete db file")
+            return
+
+        is_pair = self.ch_sen_contains_pair_cb.isChecked()
+        from_tatoeba = self.ch_sen_downloaded_from_tatoeba_cb.isChecked()
+
+        mw.progress.start(label="Creating sentence database...", immediate=True)
+        try:
+            imported = tsv_import.import_tsv(
+                self.filepath, db_file, is_pair, from_tatoeba,
+                on_progress=lambda n: mw.progress.update(label="Imported %d sentences..." % n),
+            )
+        except Exception as e:
+            tooltip("Could not read the file: %s" % e)
+            return
+        finally:
+            mw.progress.finish()
+
+        if not imported:
+            tooltip("No sentences found in the file. Check the tatoeba option and try again.")
+            return
+
+        lang_name = config_store.add_language(self.langNameEdit.text().strip(), db_file)
+        config_store.update(lang=lang_name, db_contain_pair="true" if is_pair else "false")
+        self.close()
+        tooltip("Added %d sentences as '%s'" % (imported, lang_name))
 
     def selectFileFolderDlg(self):
-        self.filepath = QFileDialog.getOpenFileName(self, 'OpenFile', filter="TSV File (*.tsv)")[0]
-        if self.filepath:
-            self.fileName = self.filepath.split("/")[-1].split(".")[0]
-            if self.filepath.split("/")[-1].split(".")[1] == "tsv":
-                self.tsvFilePath.setText(self.filepath)
-            else:
-                tooltip("Not a valid TSV file")
-
-    def addNewLangToConfig(self, dbName, langName):
-        with open(config_json, "r") as f:
-            config = json.load(f)
-            i = 0
-
-            if langName in config['all_lang']:
-                for l in config['all_lang']:
-                    if l == langName:
-                        i += 1
-                langName = langName + str(i)
-
-            config['all_lang'].append(langName)
-            config[langName] = lang_db_folder + dbName + ".db"
-
-            with open(config_json, "w") as f:
-                json.dump(config, f)
+        filepath = QFileDialog.getOpenFileName(self, 'OpenFile', filter="TSV File (*.tsv *.csv *.txt)")[0]
+        if not filepath:
+            return
+        name, ext = os.path.splitext(os.path.basename(filepath))
+        if ext.lower() not in (".tsv", ".csv", ".txt"):
+            tooltip("Not a valid TSV file")
+            return
+        self.filepath = filepath
+        self.fileName = name
+        self.tsvFilePath.setText(filepath)
 
 
 class SenAddDialog(QDialog):
@@ -221,46 +177,26 @@ class SenAddDialog(QDialog):
         self.senLenTextEdit = QLineEdit()
         self.senNumSenTextEdit = QLineEdit()
 
-        with open(config_json, "r") as f:
-            config_data = json.load(f)
-            self.templatesComboBox.addItems(config_data['all_lang'])
-            self.templatesComboBox.setCurrentText(config_data['lang'])
-            self.sentenceColor.setText(config_data['text_color'])
-            self.wordColor.setText(config_data['word_color'])
-            self.wordHTMLTextEdit.setPlainText(config_data['word_html'])
-            self.senHTMLTextEdit.setPlainText(config_data['sen_html'])
+        config_data = config_store.load()
+        self.templatesComboBox.addItems(config_data['all_lang'])
+        self.templatesComboBox.setCurrentText(config_data['lang'])
+        self.sentenceColor.setText(config_data['text_color'])
+        self.wordColor.setText(config_data['word_color'])
+        self.wordHTMLTextEdit.setPlainText(config_data['word_html'])
+        self.senHTMLTextEdit.setPlainText(config_data['sen_html'])
 
-            if config_data['auto_add'] == "true" and config_data['open_all_sen_window'] == "true" \
-                    or config_data['auto_add'] == "false" and config_data['open_all_sen_window'] == "false":
-                config_data['auto_add'] = "true"
-                config_data['open_all_sen_window'] = "false"
+        auto_add = config_mod.as_bool(config_data['auto_add'], True)
+        if config_mod.as_bool(config_data['open_all_sen_window']) == auto_add:
+            # both on or both off: fall back to auto add
+            auto_add = True
+        self.auto_add_rb.setChecked(auto_add)
+        self.all_sen_win_rb.setChecked(not auto_add)
 
-            if config_data['auto_add'] == "true":
-                self.auto_add_rb.setChecked(True)
-                self.all_sen_win_rb.setChecked(False)
-            else:
-                self.auto_add_rb.setChecked(False)
-                self.all_sen_win_rb.setChecked(True)
+        self.ch_sen_contain_space_cb.setChecked(config_mod.as_bool(config_data['sen_contain_space']))
+        self.ch_db_contain_pair_cb.setChecked(config_mod.as_bool(config_data['db_contain_pair']))
 
-            if config_data['open_all_sen_window'] == "true":
-                self.all_sen_win_rb.setChecked(True)
-                self.auto_add_rb.setChecked(False)
-            else:
-                self.all_sen_win_rb.setChecked(False)
-                self.auto_add_rb.setChecked(True)
-
-            if config_data['sen_contain_space'] == "true":
-                self.ch_sen_contain_space_cb.setChecked(True)
-            else:
-                self.ch_sen_contain_space_cb.setChecked(False)
-
-            if config_data['db_contain_pair'] == "true":
-                self.ch_db_contain_pair_cb.setChecked(True)
-            else:
-                self.ch_db_contain_pair_cb.setChecked(False)
-
-            self.senLenTextEdit.setText(config_data['sen_len'])
-            self.senNumSenTextEdit.setText(config_data['num_of_sen'])
+        self.senLenTextEdit.setText(str(config_data['sen_len']))
+        self.senNumSenTextEdit.setText(str(config_data['num_of_sen']))
 
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
@@ -307,11 +243,8 @@ class SenAddDialog(QDialog):
         self.setLayout(layout)
 
     def saveConfigData(self):
-        lang = self.templatesComboBox.currentText()
         text_color = self.sentenceColor.text()
         word_color = self.wordColor.text()
-        word_html = self.wordHTMLTextEdit.toPlainText()
-        sen_html = self.senHTMLTextEdit.toPlainText()
 
         if not utils.is_hex_color(text_color) and text_color != "":
             text_color = "#000000"
@@ -319,77 +252,44 @@ class SenAddDialog(QDialog):
         if not utils.is_hex_color(word_color) and word_color != "":
             word_color = "#000000"
 
-        if self.auto_add_rb.isChecked():
-            auto_add = "true"
-        else:
-            auto_add = "false"
-
-        if self.all_sen_win_rb.isChecked():
-            open_all_sen_window = "true"
-        else:
-            open_all_sen_window = "false"
-
-        if self.ch_sen_contain_space_cb.isChecked():
-            sen_space = "true"
-        else:
-            sen_space = "false"
-
-        if self.ch_db_contain_pair_cb.isChecked():
-            db_pair = "true"
-        else:
-            db_pair = "false"
-
-        with open(config_json, "r") as f:
-            config_dict = json.load(f)
-            config_dict["lang"] = lang
-            config_dict["text_color"] = text_color
-            config_dict["word_color"] = word_color
-            config_dict["word_html"] = word_html
-            config_dict["sen_html"] = sen_html
-            config_dict["auto_add"] = auto_add
-            config_dict["open_all_sen_window"] = open_all_sen_window
-            config_dict['sen_contain_space'] = sen_space
-            config_dict['db_contain_pair'] = db_pair
-            config_dict['sen_len'] = self.senLenTextEdit.text()
-            config_dict['num_of_sen'] = self.senNumSenTextEdit.text()
-
-            with open(config_json, "w") as f:
-                json.dump(config_dict, f)
-                self.close()
-                tooltip("Config saved!")
+        config_store.update(
+            lang=self.templatesComboBox.currentText(),
+            text_color=text_color,
+            word_color=word_color,
+            word_html=self.wordHTMLTextEdit.toPlainText(),
+            sen_html=self.senHTMLTextEdit.toPlainText(),
+            auto_add="true" if self.auto_add_rb.isChecked() else "false",
+            open_all_sen_window="true" if self.all_sen_win_rb.isChecked() else "false",
+            sen_contain_space="true" if self.ch_sen_contain_space_cb.isChecked() else "false",
+            db_contain_pair="true" if self.ch_db_contain_pair_cb.isChecked() else "false",
+            sen_len=self.senLenTextEdit.text(),
+            num_of_sen=self.senNumSenTextEdit.text(),
+        )
+        self.close()
+        tooltip("Config saved!")
 
     def openHelpInBrowser(self):
         webbrowser.open('https://github.com/krmanik/Sentence-Adder-Anki-Addon/issues')
 
     def createDBFromTSV(self):
         dlg = CreateDBDialog()
-        dlg.finished.connect(self.createDBFromTSVFinished)
+        dlg.finished.connect(self.reloadLanguages)
         dlg.exec()
         self.moveFront()
-    
-    def createDBFromTSVFinished(self):
-        with open(config_json, "r") as f:
-            config_data = json.load(f)
-            self.templatesComboBox.clear()
-            self.templatesComboBox.addItems(config_data['all_lang'])
-            self.templatesComboBox.setCurrentText(config_data['lang'])
 
     def openColorDlgSen(self):
         dialog = QColorDialog()
         color = dialog.getColor()
         if color.isValid():
-            color = color.name()
-            self.sentenceColor.setText(color)
+            self.sentenceColor.setText(color.name())
         else:
             self.sentenceColor.setText("")
 
     def openColorDlgWord(self):
         dialog = QColorDialog()
         color = dialog.getColor()
-        print(color.name())
         if color.isValid():
-            color = color.name()
-            self.wordColor.setText(color)
+            self.wordColor.setText(color.name())
         else:
             self.wordColor.setText("")
 
@@ -400,16 +300,16 @@ class SenAddDialog(QDialog):
 
     def deleteLandFromDB(self):
         dlg = RemoveLangDBDialog()
-        dlg.finished.connect(self.deleteLandFromDBFinished)
+        dlg.finished.connect(self.reloadLanguages)
         dlg.exec()
         self.moveFront()
 
-    def deleteLandFromDBFinished(self):
-        with open(config_json, "r") as f:
-            config_data = json.load(f)
-            self.templatesComboBox.clear()
-            self.templatesComboBox.addItems(config_data['all_lang'])
-            self.templatesComboBox.setCurrentText(config_data['lang'])
+    def reloadLanguages(self):
+        config_data = config_store.load()
+        self.templatesComboBox.clear()
+        self.templatesComboBox.addItems(config_data['all_lang'])
+        self.templatesComboBox.setCurrentText(config_data['lang'])
+        self.ch_db_contain_pair_cb.setChecked(config_mod.as_bool(config_data['db_contain_pair']))
 
 
 def showSenAdder():
@@ -428,10 +328,7 @@ class RemoveLangDBDialog(QDialog):
 
         topLayout = QFormLayout()
         self.templatesComboBox = QComboBox()
-
-        with open(config_json, "r") as f:
-            config_data = json.load(f)
-            self.templatesComboBox.addItems(config_data['all_lang'])
+        self.templatesComboBox.addItems(config_store.load()['all_lang'])
 
         topLayout.addRow(QLabel("Remove Language"), self.templatesComboBox)
 
@@ -449,20 +346,11 @@ class RemoveLangDBDialog(QDialog):
         self.setLayout(layout)
 
     def confirmRemoveDlg(self):
-        config_data = {}
-        with open(config_json, "r") as f:
-            config_data = json.load(f)
-            lang = self.templatesComboBox.currentText()
-            # remove
-            path = config_data[lang]
-            os.remove(path)
-
-            del config_data[lang]
-            config_data['all_lang'].remove(lang)
-
-        with open(config_json, "w") as f:
-            json.dump(config_data, f)
-
+        lang = self.templatesComboBox.currentText()
+        if config_mod.is_placeholder_lang(lang):
+            self.close()
+            return
+        config_store.remove_language(lang)
         self.close()
         tooltip("Database removed!")
 

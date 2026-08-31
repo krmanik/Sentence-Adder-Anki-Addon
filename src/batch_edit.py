@@ -16,7 +16,7 @@ from aqt import mw
 
 from anki.hooks import addHook
 
-from .editor import getRandomSentence, config_data
+from .editor import getRandomSentence, get_config
 
 from datetime import datetime
 
@@ -43,6 +43,10 @@ def batch_edit_notes(
     overwrite,
     on_complete,
 ):
+    # read the config here instead of at import time, otherwise the batch
+    # adder runs with an empty config and fails with KeyError: 'word_color'
+    config_data = get_config()
+
     def _clear_if_overwrite_selected(note):
         if overwrite and senField != wordField and transField != wordField:
             note[senField] = ""
@@ -184,7 +188,7 @@ class SentenceBatchEdit(QDialog):
 
         topLayout.addRow(QLabel("Select words field"), self.wordsComboBox)
         topLayout.addRow(QLabel("Select sentence field"), self.senComboBox)
-        if config_data.get("db_contain_pair", "false") == "true":
+        if get_config().get("db_contain_pair", "false") == "true":
             topLayout.addRow(QLabel("Selected translated sentence field"), self.transComboBox)
 
 

@@ -21,26 +21,30 @@ from anki.hooks import addHook
 from aqt.qt import Qt
 from aqt.utils import tooltip
 
+from . import config as config_mod
+
 folder = os.path.dirname(__file__)
 libfolder = os.path.join(folder, "lib")
 sys.path.insert(0, libfolder)
 
-user_folder = folder + "/user_files/"
+user_folder = os.path.join(folder, "user_files")
 
-config_json = user_folder + "config.json"
-lang_db_folder = user_folder + "lang_db/"
+config_store = config_mod.Config(user_folder)
 
 config_data = {}
 config = False
 
-def load_config():
+
+def get_config():
+    """Read the config from disk, so option changes apply without a restart."""
     global config_data, config
-    if os.path.exists(config_json):
-        with open(config_json, "r") as f:
-            config_data = json.load(f)
-            config = True
-    else:
-        config = False
+    config_data = config_store.load()
+    config = True
+    return config_data
+
+
+def load_config():
+    get_config()
 
 
 class CreateSenListDialog(QDialog):
@@ -65,8 +69,8 @@ class CreateSenListDialog(QDialog):
         self.buttonBox.addButton("Select", QDialogButtonBox.ButtonRole.AcceptRole)
         self.buttonBox.accepted.connect(self.selectSentence)
 
-        lang = config_data['lang']
-        lang_db = config_data[lang]
+        config_data = get_config()
+        lang_db = config_store.db_path(config_data)
         sen_len = config_data['sen_len']
 
         self.sentFound = False
@@ -74,7 +78,7 @@ class CreateSenListDialog(QDialog):
         if config_data['db_contain_pair'] == "true":
             self.isPair = True
 
-        if not os.path.exists(lang_db):
+        if not lang_db:
             tooltip("Database not exists! Create database and try again.")
         else:
             con = sqlite3.connect(lang_db)
@@ -145,12 +149,13 @@ def getAllSentence(word):
 
 
 def getRandomSentence(word):
-    load_config()
+    config_data = get_config()
 
     if config:
         try:
-            lang = config_data['lang']
-            lang_db = config_data[lang]
+            lang_db = config_store.db_path(config_data)
+            if not lang_db:
+                return None
             sen_len = config_data['sen_len']
             is_pair = False
 
