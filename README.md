@@ -19,7 +19,7 @@
  - Add random sentence in one click
  - View list of all sentences matching the selected word
  - Batch add sentences to many notes at once
- - Choose which field the sentences are added to
+ - Choose which field the sentences are added to, from the editor or the menu
  - Change color of sentences, wrap word and sentence in html tag
  - Add sentence pair (sentence and its translation)
  - Limit sentences by minimum and maximum length
@@ -64,7 +64,9 @@
  3. Click add button to add sentences
 
  By default the sentences go into the field the cursor is in. To always use the
- same field, put its name in ```Add sentences to field``` in the options.
+ same field, click the gear button next to the add button: it opens the same
+ options, with ```Add sentences to field``` as a list of the fields of the note
+ being edited.
 
  ## Batch adding sentences
  ```
@@ -89,7 +91,7 @@
  | Maximum Sentence Length | Longest sentence to use, 0 for no limit |
  | Minimum Sentence Length | Shortest sentence to use, 0 for no limit |
  | Number of sentence | How many sentences are added per word |
- | Add sentences to field | Field name, empty means the field the cursor is in |
+ | Add sentences to field | Field the sentences go to, empty means the field the cursor is in. Opened from the editor's gear button it lists the fields of the open note type |
  | Sentences contain spaces | Match whole words, for languages written with spaces |
 
  ## Using your own tsv file

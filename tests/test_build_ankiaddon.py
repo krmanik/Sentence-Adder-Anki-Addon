@@ -37,7 +37,8 @@ def test_every_module_and_the_icon_are_packaged(built):
     _, names, _ = built
 
     for name in ("__init__.py", "config.py", "editor.py", "batch_edit.py",
-                 "sentences.py", "tsv_import.py", "utils.py", "icon.png"):
+                 "sentences.py", "tsv_import.py", "utils.py", "icon.png",
+                 "settings_icon.png"):
         assert name in names
 
 

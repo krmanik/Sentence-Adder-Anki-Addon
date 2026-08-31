@@ -1,4 +1,4 @@
-"""Build every dialog against the PyQt6 that the installed Anki ships.
+r"""Build every dialog against the PyQt6 that the installed Anki ships.
 
 The pytest suite runs the add-on against fake Qt modules, so it cannot catch a
 Qt call that no longer exists.  This script builds each dialog for real, with a
@@ -91,6 +91,19 @@ dlg = addon.SenAddDialog()
 print("SenAddDialog ok, language:", dlg.templatesComboBox.currentText(),
       "| min len field:", repr(dlg.senMinLenTextEdit.text()),
       "| target field:", repr(dlg.targetFieldEdit.text()))
+
+fields_dlg = addon.SenAddDialog(["Simplified", "Traditional", "Sentence"])
+combo = fields_dlg.targetFieldComboBox
+print("SenAddDialog with note fields ok, choices:",
+      [combo.itemText(i) for i in range(combo.count())],
+      "| value:", repr(fields_dlg.targetFieldValue()))
+combo.setCurrentIndex(3)
+print("   picking 'Sentence' gives:", repr(fields_dlg.targetFieldValue()))
+
+store.update(target_field="NotInThisNoteType")
+kept = addon.SenAddDialog(["Simplified", "Traditional"])
+print("field set for another note type is kept:", repr(kept.targetFieldValue()))
+store.update(target_field="")
 
 create = addon.CreateDBDialog()
 create.createDB()  # no file picked yet: must warn, not raise

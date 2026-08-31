@@ -145,11 +145,19 @@ class CreateDBDialog(QDialog):
 
 
 class SenAddDialog(QDialog):
-    def __init__(self):
+    def __init__(self, field_names=None):
+        """``field_names`` are the fields of the note open in the editor.
+
+        When they are known the target field becomes a drop down of real field
+        names; opened from the Tools menu there is no note, so it stays a text
+        box.
+        """
         QDialog.__init__(self)
         mw.setupDialogGC(self)
         self.setWindowTitle(anki_addon_name)
         self.resize(400, 300)
+
+        self.field_names = list(field_names or [])
 
         layout = QVBoxLayout()
 
@@ -175,6 +183,7 @@ class SenAddDialog(QDialog):
         self.senMinLenTextEdit = QLineEdit()
         self.senNumSenTextEdit = QLineEdit()
         self.targetFieldEdit = QLineEdit()
+        self.targetFieldComboBox = QComboBox()
 
         config_data = config_store.load()
         self.templatesComboBox.addItems(config_data['all_lang'])
@@ -196,8 +205,7 @@ class SenAddDialog(QDialog):
         self.senLenTextEdit.setText(str(config_data['sen_len']))
         self.senMinLenTextEdit.setText(str(config_data['sen_min_len']))
         self.senNumSenTextEdit.setText(str(config_data['num_of_sen']))
-        self.targetFieldEdit.setText(str(config_data['target_field']))
-        self.targetFieldEdit.setPlaceholderText("empty = the field the cursor is in")
+        self.setUpTargetField(str(config_data['target_field']))
 
         topLayout.addRow(QLabel("<b>Sentence</b>"))
 
@@ -209,7 +217,7 @@ class SenAddDialog(QDialog):
         topLayout.addRow(QLabel("Maximum Sentence Length\n0 = no limit"), self.senLenTextEdit)
         topLayout.addRow(QLabel("Minimum Sentence Length\n0 = no limit"), self.senMinLenTextEdit)
         topLayout.addRow(QLabel("Number of sentence"), self.senNumSenTextEdit)
-        topLayout.addRow(QLabel("Add sentences to field"), self.targetFieldEdit)
+        topLayout.addRow(QLabel("Add sentences to field"), self.targetFieldWidget())
         topLayout.addRow(self.ch_sen_contain_space_cb)
 
         topLayout.addRow(self.auto_add_rb)
@@ -244,6 +252,33 @@ class SenAddDialog(QDialog):
         layout.addLayout(buttonBoxLayout)
         self.setLayout(layout)
 
+    def setUpTargetField(self, current):
+        """Fill the target field widget with ``current`` selected."""
+        if not self.field_names:
+            self.targetFieldEdit.setText(current)
+            self.targetFieldEdit.setPlaceholderText("empty = the field the cursor is in")
+            return
+
+        self.targetFieldComboBox.addItem("the field the cursor is in", "")
+        for name in self.field_names:
+            self.targetFieldComboBox.addItem(name, name)
+        if current and current not in self.field_names:
+            # set for a different note type; keep it instead of dropping it
+            self.targetFieldComboBox.addItem("%s (other note type)" % current, current)
+
+        index = self.targetFieldComboBox.findData(current)
+        self.targetFieldComboBox.setCurrentIndex(index if index >= 0 else 0)
+
+    def targetFieldWidget(self):
+        if self.field_names:
+            return self.targetFieldComboBox
+        return self.targetFieldEdit
+
+    def targetFieldValue(self):
+        if self.field_names:
+            return self.targetFieldComboBox.currentData() or ""
+        return self.targetFieldEdit.text().strip()
+
     def saveConfigData(self):
         text_color = self.sentenceColor.text()
         word_color = self.wordColor.text()
@@ -266,7 +301,7 @@ class SenAddDialog(QDialog):
             sen_len=self.senLenTextEdit.text().strip(),
             sen_min_len=self.senMinLenTextEdit.text().strip(),
             num_of_sen=self.senNumSenTextEdit.text().strip(),
-            target_field=self.targetFieldEdit.text().strip(),
+            target_field=self.targetFieldValue(),
         )
         self.close()
         tooltip("Config saved!")
@@ -314,8 +349,8 @@ class SenAddDialog(QDialog):
         self.templatesComboBox.setCurrentText(config_data['lang'])
 
 
-def showSenAdder():
-    dialog = SenAddDialog()
+def showSenAdder(field_names=None):
+    dialog = SenAddDialog(field_names)
     dialog.exec()
 
 
@@ -358,6 +393,7 @@ class RemoveLangDBDialog(QDialog):
 
 
 options_action = QAction(anki_addon_name + "...", mw)
-options_action.triggered.connect(showSenAdder)
+# triggered passes a checked flag, which is not a field list
+options_action.triggered.connect(lambda *args: showSenAdder())
 mw.addonManager.setConfigAction(__name__, showSenAdder)
 mw.form.menuTools.addAction(options_action)

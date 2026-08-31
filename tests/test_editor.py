@@ -5,6 +5,7 @@ cases that used to fail silently: no database selected, a word with only one
 matching sentence, and a field that lost focus.
 """
 
+import os
 import sqlite3
 
 import pytest
@@ -42,6 +43,9 @@ class FakeEditor:
 
     def loadNote(self, focusTo=None):
         self.loaded_focus = focusTo
+
+    def _addButton(self, icon, cmd, tip="", **kwargs):
+        return "<button %s icon=%s>" % (cmd, os.path.basename(icon))
 
 
 @pytest.fixture
@@ -209,6 +213,40 @@ def test_minimum_length_keeps_short_sentences_out(addon):
     editor_mod.add_sentences(ed)
 
     assert note.fields[1] == "The cat is sleeping on the sofa.<br>"
+
+
+def test_the_editor_gets_an_add_button_and_a_settings_button(addon):
+    note = FakeNote(["cat", "", ""])
+    ed = FakeEditor(note, current_field=0)
+
+    buttons = editor_mod.addSentenceButton(["existing"], ed)
+
+    assert buttons[0] == "existing"
+    assert len(buttons) == 3
+    assert "icon.png" in buttons[1]
+    assert "settings_icon.png" in buttons[2]
+    assert "addSentence" in ed._links
+    assert "sentenceAdderSettings" in ed._links
+
+
+def test_settings_button_offers_the_fields_of_the_open_note(addon, monkeypatch):
+    import sys
+
+    package = sys.modules["sentence_adder_addon"]
+    opened = []
+    monkeypatch.setattr(package, "showSenAdder", opened.append, raising=False)
+    ed = FakeEditor(FakeNote(["cat", "", ""]), current_field=0)
+
+    editor_mod.show_settings(ed)
+
+    assert opened == [["Word", "Sentence", "Translation"]]
+
+
+def test_note_field_names_without_a_note(addon):
+    ed = FakeEditor(FakeNote([""]), current_field=0)
+    ed.note = None
+
+    assert editor_mod.note_field_names(ed) == []
 
 
 def test_get_random_sentence_returns_none_without_a_database(addon):

@@ -205,13 +205,37 @@ def add_sentences(editor):
     editor.web.evalWithCallback("window.getSelection().toString()", callback)
 
 
+def note_field_names(editor):
+    """Field names of the note open in the editor, empty when there is none."""
+    note = getattr(editor, "note", None)
+    if note is None:
+        return []
+    try:
+        return list(note.keys())
+    except Exception:
+        return []
+
+
+def show_settings(editor):
+    """Open the options, offering the fields of the note being edited."""
+    from . import showSenAdder
+
+    showSenAdder(note_field_names(editor))
+
+
 def addSentenceButton(buttons, editor):
-    icon_file = os.path.join(folder, "icon.png")
     editor._links['addSentence'] = add_sentences
-    return buttons + [editor._addButton(
-        icon_file,
-        "addSentence",
-        "Select text then click it to add sentences...")]
+    editor._links['sentenceAdderSettings'] = show_settings
+    return buttons + [
+        editor._addButton(
+            os.path.join(folder, "icon.png"),
+            "addSentence",
+            "Select text then click it to add sentences..."),
+        editor._addButton(
+            os.path.join(folder, "settings_icon.png"),
+            "sentenceAdderSettings",
+            "Sentence Adder settings..."),
+    ]
 
 
 addHook("setupEditorButtons", addSentenceButton)
