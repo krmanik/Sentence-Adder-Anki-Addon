@@ -48,3 +48,14 @@ A single test:
 
 `aqt` is only listed so an IDE can resolve the imports; at runtime Anki
 provides `anki` and `aqt` itself.
+
+## Check the dialogs against the installed Anki
+
+The tests fake Qt, so they cannot catch a Qt call that a newer Anki removed.
+`tools/qt_smoke.py` builds every dialog for real, using the python inside
+Anki's own program folder (macOS path shown):
+
+```commandline
+QT_QPA_PLATFORM=offscreen \
+~/Library/Application\ Support/AnkiProgramFiles/.venv/bin/python tools/qt_smoke.py
+```
