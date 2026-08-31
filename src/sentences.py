@@ -22,6 +22,8 @@ import sqlite3
 # for a "contains" search
 CANDIDATE_LIMIT = 200
 
+LENGTH_INDEX = "idx_examples_length"
+
 _TAG_RE = re.compile(r"(?s)<[^>]*>")
 _ENTITY_RE = re.compile(r"&(nbsp|amp|lt|gt|quot|#39|#x27);", re.IGNORECASE)
 _ENTITIES = {
@@ -73,6 +75,25 @@ def has_translations(db_path):
     return "translation" in columns
 
 
+def ensure_length_index(con):
+    """Index the sentence length, which is what makes a miss cheap.
+
+    "sentence LIKE '%word%'" cannot use an index, so a word that is in no
+    sentence used to read the whole table: on a full tatoeba database that is
+    a tenth of a second per word, and a batch run over a deck of unknown words
+    looked like Anki had hung.  Restricting the scan to sentences of a usable
+    length first turns that into a couple of milliseconds.
+    """
+    try:
+        con.execute("CREATE INDEX IF NOT EXISTS %s ON examples(length(sentence))"
+                    % LENGTH_INDEX)
+        con.commit()
+        return True
+    except sqlite3.Error:
+        # a read only file or an old database: searching still works
+        return False
+
+
 def count_sentences(db_path):
     """How many sentences a language database holds, 0 when unreadable."""
     con = sqlite3.connect(db_path)
@@ -111,10 +132,12 @@ class SentenceDB:
             with_translation = has_translations(db_path)
         self.with_translation = with_translation
         self._con = None
+        self._cache = {}
 
     def _connect(self):
         if self._con is None:
             self._con = sqlite3.connect(self.db_path)
+            ensure_length_index(self._con)
         return self._con
 
     def find(self, word):
@@ -122,6 +145,10 @@ class SentenceDB:
         word = strip_html(word)
         if not self.db_path or not word:
             return []
+
+        if word in self._cache:
+            # a batch run often meets the same word again
+            return self._cache[word]
 
         columns = "sentence, translation" if self.with_translation else "sentence"
         sql = "SELECT %s FROM examples WHERE sentence LIKE ? ESCAPE '\\'" % columns
@@ -154,10 +181,15 @@ class SentenceDB:
             rows = rows[:self.limit]
 
         if self.with_translation:
-            return [(row[0], row[1]) for row in rows]
-        return [(row[0], None) for row in rows]
+            found = [(row[0], row[1]) for row in rows]
+        else:
+            found = [(row[0], None) for row in rows]
+
+        self._cache[word] = found
+        return found
 
     def close(self):
+        self._cache.clear()
         if self._con is not None:
             self._con.close()
             self._con = None

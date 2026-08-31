@@ -107,13 +107,23 @@ def test_batch_adder_works_on_an_old_install(col, old_install):
     assert "cat" in col.get_note(nid)["Sentence"]
 
 
-def test_the_database_file_is_not_touched(old_install):
+def test_sentences_in_an_old_database_are_left_alone(old_install):
+    """Looking a word up adds a length index, and changes nothing else."""
     db_path = old_install.db_path(old_install.load())
-    before = os.path.getsize(db_path)
+    con = sqlite3.connect(db_path)
+    before = con.execute("SELECT id, sentence FROM examples ORDER BY id").fetchall()
+    con.close()
 
     editor_mod.getRandomSentence("cat")
 
-    assert os.path.getsize(db_path) == before
+    con = sqlite3.connect(db_path)
+    after = con.execute("SELECT id, sentence FROM examples ORDER BY id").fetchall()
+    indexes = [row[0] for row in
+               con.execute("SELECT name FROM sqlite_master WHERE type='index'")]
+    con.close()
+
+    assert after == before
+    assert "idx_examples_length" in indexes
 
 
 def test_a_database_left_where_1_0_6_put_it_is_still_found(tmp_path, monkeypatch):

@@ -15,6 +15,7 @@ from conftest import load_addon_module
 recorder = fake_anki.install()
 batch_edit = load_addon_module("batch_edit")
 editor_mod = load_addon_module("editor")
+sentences_mod = load_addon_module("sentences")
 
 from anki.collection import Collection  # noqa: E402  (needs no fakes)
 
@@ -77,9 +78,10 @@ def run_batch(col, nids, options):
     fake_anki.FakeCollectionOp.collection = col
     result = {}
 
-    def on_complete(updated, not_found):
+    def on_complete(updated, not_found, cancelled=False):
         result["updated"] = updated
         result["not_found"] = not_found
+        result["cancelled"] = cancelled
 
     batch_edit.batch_edit_notes(None, nids, options, on_complete)
     return result
@@ -287,3 +289,67 @@ def test_number_of_sentences_setting_is_used(col, store):
     run_batch(col, [nid], dict(BASE_OPTIONS))
 
     assert col.get_note(nid)["Sentence"].count("<br>") == 3
+
+
+# the run that used to hang ################################################
+
+
+def test_a_batch_where_no_word_matches_finishes(col, store):
+    """Reported as: Anki freezes and has to be force quit when a word has
+    no sentence in the database."""
+    make_db(store, ["The cat sleeps."])
+    model = note_type(col)
+    nids = [add_note(col, model, {"Word": w}) for w in ("aardvark", "quokka", "narwhal")]
+
+    result = run_batch(col, nids, dict(BASE_OPTIONS))
+
+    assert result["updated"] == 0
+    assert result["not_found"] == ["aardvark", "quokka", "narwhal"]
+    assert all(col.get_note(nid)["Sentence"] == "" for nid in nids)
+
+
+def test_a_batch_that_changes_nothing_leaves_the_collection_usable(col, store):
+    """add_custom_undo_entry with no updates has to stay a valid undo step."""
+    make_db(store, ["The cat sleeps."])
+    model = note_type(col)
+    nid = add_note(col, model, {"Word": "aardvark"})
+
+    run_batch(col, [nid], dict(BASE_OPTIONS))
+
+    # the collection still works, and a following run still updates notes
+    hit = add_note(col, model, {"Word": "cat"})
+    store.update(num_of_sen="1")
+    assert run_batch(col, [hit], dict(BASE_OPTIONS))["updated"] == 1
+
+
+def test_the_same_word_is_only_looked_up_once(col, store):
+    """1500 notes of the same unknown word must not be 1500 searches."""
+    db = sentences_mod.SentenceDB(make_db(store, ["The cat sleeps."]))
+    searched = []
+    original = db._connect
+
+    def counting_connect():
+        searched.append(1)
+        return original()
+
+    db._connect = counting_connect
+
+    db.find("aardvark")
+    db.find("aardvark")
+    db.find("aardvark")
+
+    assert len(searched) == 1
+
+
+def test_a_cancelled_run_keeps_what_it_already_did(col, store, monkeypatch):
+    make_db(store, ["The cat sleeps."])
+    store.update(num_of_sen="1")
+    model = note_type(col)
+    nids = [add_note(col, model, {"Word": "cat"}) for _ in range(3)]
+    monkeypatch.setattr(batch_edit, "want_cancel", lambda: True)
+
+    result = run_batch(col, nids, dict(BASE_OPTIONS))
+
+    assert result["cancelled"] is True
+    assert result["updated"] == 0
+    assert col.get_note(nids[0])["Sentence"] == ""

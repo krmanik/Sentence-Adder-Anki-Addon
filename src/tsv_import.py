@@ -293,6 +293,15 @@ def import_tsv(tsv_path, db_file, is_pair=None, from_tatoeba=None, layout=None,
         if pending:
             conn.executemany(sql, pending)
         conn.commit()
+        # searching a word that is in no sentence reads the whole table
+        # without this
+        try:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_examples_length "
+                "ON examples(length(sentence))")
+            conn.commit()
+        except sqlite3.Error:
+            pass
     except Exception:
         conn.close()
         _remove(db_file)

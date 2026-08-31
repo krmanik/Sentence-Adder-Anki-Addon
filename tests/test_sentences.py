@@ -253,3 +253,35 @@ def test_count_sentences(tmp_path):
     broken = tmp_path / "broken.db"
     broken.write_text("not a database")
     assert sentences.count_sentences(str(broken)) == 0
+
+
+def test_a_length_index_is_created_on_first_use(tmp_path):
+    """Without it, a word that is in no sentence reads the whole table."""
+    db = make_db(tmp_path, ["The cat sleeps."])
+
+    with sentences.SentenceDB(db, max_len=100) as opened:
+        opened.find("cat")
+
+    con = sqlite3.connect(db)
+    indexes = [row[0] for row in
+               con.execute("SELECT name FROM sqlite_master WHERE type='index'")]
+    con.close()
+    assert sentences.LENGTH_INDEX in indexes
+
+
+def test_lookups_still_work_when_the_index_cannot_be_created(tmp_path, monkeypatch):
+    db = make_db(tmp_path, ["The cat sleeps."])
+    monkeypatch.setattr(sentences, "ensure_length_index", lambda con: False)
+
+    assert texts(sentences.find_sentences(db, "cat")) == ["The cat sleeps."]
+
+
+def test_the_same_word_is_searched_only_once(tmp_path):
+    db = make_db(tmp_path, ["The cat sleeps."])
+    opened = sentences.SentenceDB(db)
+
+    assert opened.find("cat") == opened.find("cat")
+    assert list(opened._cache) == ["cat"]
+
+    opened.close()
+    assert opened._cache == {}

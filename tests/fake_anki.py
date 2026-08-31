@@ -26,6 +26,11 @@ class _Anything(metaclass=_Meta):
     def __call__(self, *args, **kwargs):
         return _Anything()
 
+    def __bool__(self):
+        # a stand-in is not an answer: "mw.progress.want_cancel()" and friends
+        # must not read as True
+        return False
+
 
 class Recorder:
     """Collects the messages the add-on would show the user."""

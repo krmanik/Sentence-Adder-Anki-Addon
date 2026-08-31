@@ -33,6 +33,15 @@ folder = os.path.dirname(__file__)
 PROGRESS_EVERY = 20
 
 
+def want_cancel():
+    """Whether the user pressed the progress window's cancel button."""
+    try:
+        return mw.progress.want_cancel() is True
+    except Exception:
+        # older Anki, or no progress window: the run simply cannot be stopped
+        return False
+
+
 def open_language_db(config_data):
     """The selected language database, or None when there is none."""
     db_path = editor.config_store.db_path(config_data)
@@ -113,10 +122,14 @@ def batch_edit_notes(parent, nids, options, on_complete):
         updated = []
         not_found = []
         total = len(nids)
+        cancelled = False
 
         try:
             for index, nid in enumerate(nids):
                 if index % PROGRESS_EVERY == 0:
+                    if want_cancel():
+                        cancelled = True
+                        break
                     mw.taskman.run_on_main(
                         lambda done=index, left=total - index: mw.progress.update(
                             label="Remaining: %d notes" % left,
@@ -141,12 +154,14 @@ def batch_edit_notes(parent, nids, options, on_complete):
         changes = collection.merge_undo_entries(undo_entry_id)
 
         operation.not_found = not_found
+        operation.cancelled = cancelled
         return OpChangesWithCount(changes=changes, count=len(updated))
 
     operation.not_found = []
+    operation.cancelled = False
 
     def success(changes):
-        on_complete(changes.count, operation.not_found)
+        on_complete(changes.count, operation.not_found, operation.cancelled)
 
     CollectionOp(parent=parent, op=operation).success(success).run_in_background()
 
@@ -247,8 +262,10 @@ class SentenceBatchEdit(QDialog):
         else:
             combo.setCurrentText(fallback)
 
-    def on_complete(self, updated, not_found):
+    def on_complete(self, updated, not_found, cancelled=False):
         message = "<b>Updated</b> %d notes." % updated
+        if cancelled:
+            message = "Stopped. " + message
         path = write_not_found(not_found)
         if path:
             message += "<br>%d words had no sentence, listed in<br>%s" % (
